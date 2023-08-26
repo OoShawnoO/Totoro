@@ -6,6 +6,7 @@
 #include <string>           /* string */
 #include "AsyncLogger.h"    /* AsyncLogger */
 #include <sys/stat.h>       /* stat */
+#include <vector>
 
 namespace totoro {
 #define SOCKET_BUF_SIZE 4096
@@ -95,16 +96,31 @@ namespace totoro {
 
         #define PAYLOAD_SIZE 1461
         #define PACKET_SIZE 1500
+        #define MAX_WAIT_ACK 100000
+        #define MAX_WAIT_RECV 10000000
         struct packet{
             header header;
             char payload[PAYLOAD_SIZE];
         };
         #pragma pack()
+        packet pack                 {};
+        uint64_t timer              {0};
+        uint32_t random             {0};
+
         static void initPacket(packet& packet,uint8_t type,uint16_t length,uint32_t sequence);
         static bool checkPacket(packet& packet,uint8_t type);
         static uint32_t checksum(const void* packet,size_t nBytes);
         static inline uint64_t nowUs();
+        bool sendStart();
+        bool sendEnd();
+        int sendData(const char* data,size_t size);
+        bool sendPacket(uint8_t type,uint16_t length,int seq);
+        bool waitPacket(uint8_t type,int waitTime,sockaddr_in* fromAddr = nullptr,socklen_t* len = nullptr);
 
+        int minSequence             {0};
+        int windowSize              {16};
+        std::vector<bool> sendMap   {};
+        int sequence                {0};
         sockaddr_in destAddr        {};
         socklen_t   destAddrLen     {};
     protected:
@@ -114,6 +130,7 @@ namespace totoro {
         UDPSocket();
         ~UDPSocket() override;
         bool Init(const std::string& ip,short port) override;
+        void SetDestAddr(const std::string& ip,short port);
         inline bool Bind() override;
         inline bool Listen() override;
         int SendWithHeader(const char* data) override;

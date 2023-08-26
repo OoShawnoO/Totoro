@@ -1,7 +1,7 @@
 #include <cstring>          /* memcpy */
 #include <fcntl.h>          /* fcntl */
 #include <sys/sendfile.h>   /* sendfile */
-#include <sys/time.h>
+#include <sys/time.h>       /* time */
 #include "Socket.h"         /* Socket */
 
 namespace totoro {
@@ -416,28 +416,121 @@ namespace totoro {
         return false;
     }
 
-    int UDPSocket::SendWithHeader(const char *data) {
-        uint32_t random = (uint32_t)rand()%100;
-        packet packet{};
-        initPacket(packet,UDP_START,0,random);
-        if(sendto(sock,&packet,packet.header.length + sizeof(packet.header),0,
+    void UDPSocket::SetDestAddr(const std::string &ip, short port){
+        destAddr.sin_addr.s_addr = inet_addr(ip.c_str());
+        destAddr.sin_port = htons(port);
+        destAddr.sin_family = type;
+    }
+
+    bool UDPSocket::sendStart()
+    {
+        random = (uint32_t)rand()%100;
+        if(!sendPacket(UDP_START,0,random)) return false;
+        return waitPacket(UDP_START,MAX_WAIT_ACK);
+    }
+
+    bool UDPSocket::sendEnd(){
+        if(!sendPacket(UDP_END,0,sequence+1)) return false;
+        return waitPacket(UDP_ACK,MAX_WAIT_ACK);
+    }
+
+    bool UDPSocket::sendPacket(uint8_t type,uint16_t length, int seq)
+    {
+        initPacket(pack,type,length,seq);
+
+        if(sendto(sock,&pack,pack.header.length + UDP_HEADER_SIZE,0,
                   (sockaddr*)&destAddr,sizeof(destAddr)) <= 0){
-            return -1;
+            return false;
         }
-        uint64_t timer = nowUs();
-        socklen_t socklen;
+        return true;
+    }
+
+    bool UDPSocket::waitPacket(uint8_t type,int waitTime,sockaddr_in* fromAddr,socklen_t* len)
+    {
+        timer = nowUs();
         while(true){
-            if(recvfrom(sock,&packet,PACKET_SIZE,MSG_DONTWAIT,(sockaddr*)&destAddr,&socklen) < 0){
+            if(recvfrom(sock,&pack,PACKET_SIZE,MSG_DONTWAIT,(sockaddr*)fromAddr,len) < 0){
+                if(nowUs() > timer + waitTime) return false;
+            }else{
+                if(!checkPacket(pack,type) || type == UDP_ACK && random + 1 != pack.header.sequence){
+                    return false;
+                }
+                return true;
             }
         }
+
+    }
+
+    int UDPSocket::sendData(const char* data,size_t size)
+    {
+        size_t needSend;
+        writeCursor = sequence * PAYLOAD_SIZE;
+        needSend = size - writeCursor > PAYLOAD_SIZE ? PAYLOAD_SIZE : size - writeCursor;
+        memcpy(pack.payload,data + writeCursor,needSend);
+        initPacket(pack,UDP_DATA,needSend,sequence);
+        if(sendto(sock,&pack,pack.header.length + UDP_HEADER_SIZE,0,(sockaddr*)&destAddr,sizeof(destAddr)) < 0){
+            if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
+            return -1;
+        }
+        sequence++;
+        return 1;
+    }
+
+    int UDPSocket::SendWithHeader(const char *data) {
+        size_t dataSize = strlen(data) + 1;
+        if(isNew){
+            int times = 3;
+            while(times-- > 0){
+                if(!sendStart()) continue;
+                break;
+            }
+            if(times <= 0) return -1;
+            minSequence = 0;
+            sequence = 0;
+            sendMap.clear();
+            sendMap.resize(windowSize,false);
+        }
+        /* send */
+        timer = nowUs();
+        while(minSequence * PAYLOAD_SIZE < dataSize){
+            if((recvfrom(sock,&pack,PACKET_SIZE,MSG_DONTWAIT,nullptr,nullptr)) < 0){
+                if(nowUs() > timer + MAX_WAIT_ACK) sequence = minSequence;
+            }else{
+                if(checkPacket(pack,UDP_ACK)){
+                    if(pack.header.sequence < minSequence + windowSize){
+                        timer = nowUs();
+                        if(pack.header.sequence >= minSequence){
+                            sendMap[pack.header.sequence % windowSize] = true;
+                            while(sendMap[minSequence % windowSize]){
+                                sendMap[minSequence % windowSize] = false;
+                                minSequence++;
+                            }
+                        }
+                    }
+                }
+            }
+            while(sequence < minSequence + windowSize && minSequence * PAYLOAD_SIZE < dataSize){
+                if(sendMap[sequence % windowSize] == 1){
+                    sequence++;continue;
+                }
+                int ret = sendData(data,dataSize);
+                if(ret < 0) return -1;
+                else if(ret == 0) return 0;
+            }
+        }
+        if(!sendEnd()){
+            return -1;
+        }
+        isNew = true;
+        return 1;
     }
 
     int UDPSocket::SendWithHeader(std::string &data) {
-        return Socket::SendWithHeader(data);
+        return SendWithHeader(data.c_str());
     }
 
     int UDPSocket::SendWithHeader(std::string &&data) {
-        return Socket::SendWithHeader(data);
+        return SendWithHeader(data.c_str());
     }
 
     int UDPSocket::SendAll(std::string &data) {
@@ -462,29 +555,82 @@ namespace totoro {
         if(isNew){
             writeTotalBytes = size;
             writeCursor = 0;
-            if(writeTotalBytes <= 1) return -1;
+            if(writeTotalBytes < 1) return -1;
             isNew = false;
         }
         return sendImpl(data);
     }
 
     int UDPSocket::SendFile(const std::string &filePath) {
-
+        if(isNew){
+            file = open(filePath.c_str(),O_RDONLY);
+            fstat(file,&stat);
+            writeTotalBytes = stat.st_size;
+            writeCursor = 0;
+            isNew = false;
+        }
+        size_t hadSend;
+        char buffer[4096] = {0};
+        while(writeCursor < writeTotalBytes){
+            bzero(buffer,sizeof(buffer));
+            ssize_t hadRead = read(file,buffer,sizeof(buffer));
+            if(hadRead < 0){
+                return -1;
+            }
+            if((hadSend = sendto(sock,buffer,hadRead,0,(sockaddr*)&destAddr,sizeof(destAddr))) < 0){
+                if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
+                return -1;
+            }
+            writeCursor += hadSend;
+        }
+        close(file);
+        file = -1;
+        isNew = true;
+        return 1;
     }
 
+
     int UDPSocket::RecvWithHeader(std::string &data) {
-        return Socket::RecvWithHeader(data);
+        if(isNew){
+            socklen_t len;
+            if(!waitPacket(UDP_START,MAX_WAIT_RECV,&destAddr,&len)) return -1;
+            if(!sendPacket(UDP_ACK,0,pack.header.sequence+1)) return -1;
+            minSequence = 0;
+        }
+        timer = nowUs();
+        while(true){
+            if(!waitPacket(UDP_DATA,MAX_WAIT_RECV)){
+                if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
+                return -1;
+            }
+            if(pack.header.sequence < minSequence + windowSize && pack.header.sequence > minSequence){
+
+            }
+        }
     }
 
     int UDPSocket::Recv(std::string &data, size_t size) {
-        return 0;
+        if(isNew){
+            readCursor = 0;
+            readTotalBytes = size;
+            if(readTotalBytes < 1) return -1;
+            isNew = false;
+        }
+        return recvImpl(data);
     }
 
     bool UDPSocket::RecvAll(std::string &data) {
-        return false;
+        if(isNew){
+            readCursor = 0;
+            readTotalBytes = SIZE_MAX;
+            if(readTotalBytes < 1) return -1;
+            isNew = false;
+        }
+        return recvImpl(data) == 0;
     }
 
     int UDPSocket::RecvFile(const std::string &filePath, size_t size) {
         return 0;
     }
+
 } // totoro
