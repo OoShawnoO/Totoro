@@ -1,5 +1,12 @@
 # TotoroServer
-单Reactor / 多Reactor 模型服务器框架，用于高效开发服务器，兼容C++ 11以上。
+Reconfiguration for conv_event
+https://github.com/OoShawnoO/conv_event
 
-> 第三方库: 
-> - nlohmann/json => include/Json.hpp
+- Single Reactor / Master-slave Reactor Model
+- Compatible with Linux / C++ 11 or above
+- Signal Driven IO + User Model Async IO
+
+### Third Party: 
+> nlohmann/json => include/Json.hpp
+
+### 

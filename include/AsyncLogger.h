@@ -20,6 +20,7 @@ namespace totoro {
 #define LOG_BUF_SIZE 4096
     class AsyncLogger {
         struct Msg {
+            std::string channel;
             LEVEL level;
             int line;
             std::string msg;
@@ -48,25 +49,26 @@ namespace totoro {
         void writeLog(Msg& msg);
     public:
         ~AsyncLogger();
-        static std::unordered_map<const char*,LEVEL> str2Level;
+        const static std::unordered_map<std::string,LEVEL> str2Level;
         static LEVEL logLevel;
+        static std::unordered_map<std::string,LEVEL> channelLevel;
         static void Work(AsyncLogger*);
-        static void Log(LEVEL level, int line, std::string data, const char * filename, const char * function);
+        static void Log(LEVEL level,const std::string& channel, int line, std::string data, const char * filename, const char * function);
     };
-#define PRIVATE_LOG(level,msg) do {                                         \
-    if(level >= totoro::AsyncLogger::logLevel){                             \
-        totoro::AsyncLogger::Log(level,__LINE__,msg,__FILE__,__FUNCTION__); \
+#define PRIVATE_LOG(level,channel,msg) do {                                         \
+    if(level >= totoro::AsyncLogger::channelLevel[channel]){                             \
+        totoro::AsyncLogger::Log(level,channel,__LINE__,msg,__FILE__,__FUNCTION__); \
     }                                                                       \
 }while(0)
 #ifndef NO_ASYNC_LOG
-#define LOG_TRACE(msg) PRIVATE_LOG(totoro::LEVEL::L_TRACE,msg)
-#define LOG_DEBUG(msg) PRIVATE_LOG(totoro::LEVEL::L_DEBUG,msg)
-#define LOG_INFO(msg) PRIVATE_LOG(totoro::LEVEL::L_INFO,msg)
-#define LOG_WARN(msg) PRIVATE_LOG(totoro::LEVEL::L_WARN,msg)
-#define LOG_ERROR(msg) PRIVATE_LOG(totoro::LEVEL::L_ERROR,msg)
-#define LOG_FATAL(msg) PRIVATE_LOG(totoro::LEVEL::L_FATAL,msg)
+#define LOG_TRACE(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_TRACE,channel,msg)
+#define LOG_DEBUG(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_DEBUG,channel,msg)
+#define LOG_INFO(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_INFO,channel,msg)
+#define LOG_WARN(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_WARN,channel,msg)
+#define LOG_ERROR(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_ERROR,channel,msg)
+#define LOG_FATAL(channel,msg) PRIVATE_LOG(totoro::LEVEL::L_FATAL,channel,msg)
 #else
-#define LOG_TRACE(msg)
+    #define LOG_TRACE(msg)
 #define LOG_DEBUG(msg)
 #define LOG_INFO(msg)
 #define LOG_WARN(msg)
@@ -74,6 +76,6 @@ namespace totoro {
 #define LOG_FATAL(msg)
 #endif
 
-} // totoro
+} // sstc
 
 #endif //TOTOROSERVER_ASYNCLOGGER_H

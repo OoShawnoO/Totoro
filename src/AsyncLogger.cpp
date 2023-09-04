@@ -2,15 +2,14 @@
 #include <cstring>
 #include <sstream>
 #include <utility>
-#include "Configure.h"
 #include "AsyncLogger.h"
 
 
 namespace totoro {
-    std::unordered_map<const char*,LEVEL> AsyncLogger::str2Level{
+    const std::unordered_map<std::string,LEVEL> AsyncLogger::str2Level{
             {"TRACE",L_TRACE},{"DEBUG",L_DEBUG},{"INFO",L_INFO},{"WARN",L_WARN},{"ERROR",L_ERROR},{"FATAL",L_FATAL}
     };
-    LEVEL AsyncLogger::logLevel = AsyncLogger::str2Level[std::string(Configure::Get()["log-level"]).c_str()];
+    std::unordered_map<std::string,LEVEL> AsyncLogger::channelLevel;
 
 
     AsyncLogger::AsyncLogger(std::string _filePath):filePath(std::move(_filePath)) {
@@ -32,12 +31,13 @@ namespace totoro {
         }
     }
 
-    void AsyncLogger::Log(LEVEL level, int line, std::string data, const char * filename, const char * function) {
-        static AsyncLogger asyncLogger(Configure::Get()["log"]);
+    void AsyncLogger::Log(LEVEL level,const std::string& channel, int line,
+                          std::string data, const char * filename, const char * function) {
+        static AsyncLogger asyncLogger("");
         std::time_t current = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         static time_t last = 0;
         static char timeStr[20];
-        Msg msg{level,line,std::move(data),filename,function};
+        Msg msg{channel,level,line,std::move(data),filename,function};
         if(current - last > 1){
             std::strftime(timeStr,sizeof(timeStr),"%Y-%m-%d %H:%M:%S",std::localtime(&current));
             last = current;
@@ -74,7 +74,7 @@ namespace totoro {
         if(msg.msg.size() + strlen(msg.filename) + strlen(msg.function) > LOG_BUF_SIZE - 30){
             std::cerr << "[ERROR] 单条日志容量大于4k" << std::endl;
             std::stringstream ss;
-            ss << "[" << msg.time << "]" << "[ " << levelMap.at(msg.level) << " ] " << msg.msg
+            ss << "[" << msg.time << "]" <<"[ " << msg.channel << " ]" <<  "[ " << levelMap.at(msg.level) << " ] " << msg.msg
                << " [" << msg.filename << ":" << msg.line << ":" << msg.function << "]\n";
             if(fp){
                 fwrite(writeBuffer,strlen(writeBuffer),1,fp);
@@ -85,10 +85,11 @@ namespace totoro {
             std::cout << colorScheme.at(msg.level) << ss.str() << CANCEL_COLOR_SCHEME;
             return;
         }
-        sprintf(buffer,"[%s][ %s ] %s [%s:%d:%s]\n",
-                msg.time,levelMap.at(msg.level),msg.msg.c_str(),
+        sprintf(buffer,"[%s][ %s ][ %s ] %s [%s:%d:%s]\n",
+                msg.time,msg.channel.c_str(),levelMap.at(msg.level),msg.msg.c_str(),
                 msg.filename,msg.line,msg.function);
         std::cout << colorScheme.at(msg.level) << buffer << CANCEL_COLOR_SCHEME;
+        fflush(stdout);
         if(fp){
             strcat(writeBuffer,buffer);
             writeCursor += (int)strlen(buffer);

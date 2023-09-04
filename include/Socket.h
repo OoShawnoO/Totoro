@@ -16,23 +16,26 @@ namespace totoro {
         bool isNew                          {true};
         int type                            {SOCK_STREAM};
         char readBuffer[SOCKET_BUF_SIZE]  = {0};
+        char writeBuffer[SOCKET_BUF_SIZE] = {0};
         size_t readCursor                   {0};
         size_t writeCursor                  {0};
         size_t readTotalBytes               {0};
         size_t writeTotalBytes              {0};
         int file                            {-1};
         struct stat stat                    {};
+        int sock                            {-1};
+        sockaddr_in myAddr                  {};
+        sockaddr_in destAddr                {};
+        socklen_t   destAddrLen             {};
 
         virtual int sendImpl(const char* data) = 0;
         virtual int recvImpl(std::string& data) = 0;
     public:
-        int sock                            {-1};
-        sockaddr_in myAddr                  {};
-        virtual ~Socket() = default;
+        virtual ~Socket();
         virtual bool Init(const std::string& ip,short port) = 0;
         virtual inline bool Bind() = 0;
         virtual inline bool Listen() = 0;
-        virtual int SendWithHeader(const char* data);
+        virtual int SendWithHeader(const char* data,size_t size);
         virtual int SendWithHeader(std::string& data);
         virtual int SendWithHeader(std::string&& data);
         virtual int SendAll(std::string& data) = 0;
@@ -44,7 +47,9 @@ namespace totoro {
         virtual int RecvWithHeader(std::string& data);
         virtual int Recv(std::string& data,size_t size) = 0;
         virtual bool RecvAll(std::string& data) = 0;
-        virtual int RecvFile(const std::string& filePath,size_t size) = 0;
+        virtual int RecvFile(const std::string& filePath) = 0;
+
+        virtual void Close();
     };
 
     class TCPSocket : public Socket {
@@ -61,11 +66,12 @@ namespace totoro {
         TCPSocket();
         ~TCPSocket() override;
         bool Init(const std::string& ip,short port) override;
-        void Init(int sock,sockaddr_in& addr);
+        void Init();
         inline bool Bind() override;
         inline bool Listen() override;
+        bool Accept(TCPSocket& tcpSocket);
         bool Connect(const std::string& ip,short port);
-        int SendWithHeader(const char* data) override;
+        int SendWithHeader(const char* data,size_t size) override;
         int SendWithHeader(std::string& data) override;
         int SendWithHeader(std::string&& data) override;
         int SendAll(std::string& data) override;
@@ -77,52 +83,12 @@ namespace totoro {
         int RecvWithHeader(std::string& data) override;
         int Recv(std::string& data,size_t size) override;
         bool RecvAll(std::string& data) override;
-        int RecvFile(const std::string& filePath,size_t size) override;
+        int RecvFile(const std::string& filePath) override;
+
+        void Close() override;
     };
 
     class UDPSocket : public Socket {
-        #pragma pack(1)
-        #define UDP_START 0
-        #define UDP_END 1
-        #define UDP_DATA 2
-        #define UDP_ACK 3
-        struct header{
-            uint8_t type;
-            uint16_t length;
-            uint32_t sequence;
-            uint32_t checksum;
-        };
-        #define UDP_HEADER_SIZE sizeof(header)
-
-        #define PAYLOAD_SIZE 1461
-        #define PACKET_SIZE 1500
-        #define MAX_WAIT_ACK 100000
-        #define MAX_WAIT_RECV 10000000
-        struct packet{
-            header header;
-            char payload[PAYLOAD_SIZE];
-        };
-        #pragma pack()
-        packet pack                 {};
-        uint64_t timer              {0};
-        uint32_t random             {0};
-
-        static void initPacket(packet& packet,uint8_t type,uint16_t length,uint32_t sequence);
-        static bool checkPacket(packet& packet,uint8_t type);
-        static uint32_t checksum(const void* packet,size_t nBytes);
-        static inline uint64_t nowUs();
-        bool sendStart();
-        bool sendEnd();
-        int sendData(const char* data,size_t size);
-        bool sendPacket(uint8_t type,uint16_t length,int seq);
-        bool waitPacket(uint8_t type,int waitTime,sockaddr_in* fromAddr = nullptr,socklen_t* len = nullptr);
-
-        int minSequence             {0};
-        int windowSize              {16};
-        std::vector<bool> sendMap   {};
-        int sequence                {0};
-        sockaddr_in destAddr        {};
-        socklen_t   destAddrLen     {};
     protected:
         int sendImpl(const char* data) override;
         int recvImpl(std::string& data) override;
@@ -133,7 +99,7 @@ namespace totoro {
         void SetDestAddr(const std::string& ip,short port);
         inline bool Bind() override;
         inline bool Listen() override;
-        int SendWithHeader(const char* data) override;
+        int SendWithHeader(const char* data,size_t size) override;
         int SendWithHeader(std::string& data) override;
         int SendWithHeader(std::string&& data) override;
         int SendAll(std::string& data) override;
@@ -145,7 +111,9 @@ namespace totoro {
         int RecvWithHeader(std::string& data) override;
         int Recv(std::string& data,size_t size) override;
         bool RecvAll(std::string& data) override;
-        int RecvFile(const std::string& filePath,size_t size) override;
+        int RecvFile(const std::string& filePath) override;
+
+        void Close() override;
     };
 } // totoro
 
