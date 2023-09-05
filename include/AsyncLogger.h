@@ -41,7 +41,7 @@ namespace totoro {
         int writeCursor                         {0};
         FILE* fp                                {nullptr};
         Channel<Msg> logChan                    {};
-        Semaphore logSem                        {};
+        counting_semaphore<0> logSem               {0};
         std::thread workThread                  {};
         bool isStop                             {false};
 
@@ -50,7 +50,6 @@ namespace totoro {
     public:
         ~AsyncLogger();
         const static std::unordered_map<std::string,LEVEL> str2Level;
-        static LEVEL logLevel;
         static std::unordered_map<std::string,LEVEL> channelLevel;
         static void Work(AsyncLogger*);
         static void Log(LEVEL level,const std::string& channel, int line, std::string data, const char * filename, const char * function);

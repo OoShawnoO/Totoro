@@ -1,4 +1,7 @@
 {
   "log": "log/log.log",
-  "log-level": "TRACE"
+  "logChannel": {
+    "Main": "TRACE",
+    "Socket": "ERROR"
+  }
 }

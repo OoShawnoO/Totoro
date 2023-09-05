@@ -18,7 +18,7 @@ namespace totoro {
 
     AsyncLogger::~AsyncLogger(){
         isStop = true;
-        logSem.signal();
+        Log(L_INFO,"Main",__LINE__,"程序结束",__FILE__,__FUNCTION__);
         workThread.join();
         if(fp){
             if(strlen(writeBuffer) > 0){
@@ -46,7 +46,7 @@ namespace totoro {
             strcpy(msg.time,timeStr);
         }
         asyncLogger.logChan.push(std::move(msg));
-        asyncLogger.logSem.signal();
+        asyncLogger.logSem.release();
     }
 
     void AsyncLogger::Work(AsyncLogger* _asyncLogger) {
@@ -55,9 +55,9 @@ namespace totoro {
         if(!asyncLogger.fp && !asyncLogger.filePath.empty())
             asyncLogger.fp = fopen(asyncLogger.filePath.c_str(),"a+");
         while(!asyncLogger.isStop){
-            asyncLogger.logSem.wait();
+            asyncLogger.logSem.acquire();
             if(!asyncLogger.logChan.pop(msg)){
-                std::cerr << "[FATAL] 空队列，信号量wait成功!" << std::endl;
+                std::cerr << "[FATAL] 空队列，信号量acquire成功!" << std::endl;
                 exit(-1);
             }
             asyncLogger.writeLog(msg);

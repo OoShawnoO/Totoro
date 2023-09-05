@@ -6,31 +6,43 @@
 #include <deque>
 
 namespace totoro {
-    class Semaphore {
+    template<size_t _least_max_value = SIZE_MAX>
+    class counting_semaphore {
+        static_assert(_least_max_value >= 0,"least max value must more than 0");
+        static_assert(_least_max_value <= SIZE_MAX,"least max value must lower than size_t max");
     public:
-        explicit Semaphore(long count = 0);
+        counting_semaphore() = default;
+        explicit counting_semaphore(size_t desire) : count(desire){};
         //V操作，唤醒
-        void signal();
+        void acquire(){
+            std::unique_lock<std::mutex> lock(mt);
+            cond.wait(lock,[&]{return count > 0;});
+            --count;
+        }
         //P操作，阻塞
-        void wait();
+        void release(){
+            std::unique_lock<std::mutex> lock(mt);
+            ++count;
+            cond.notify_one();
+        }
     private:
         std::mutex mt;
         std::condition_variable cond;
-        long count;
+        size_t count{0};
     };
     template<typename T>
     struct Channel {
         std::mutex mtx;
         std::deque<T> data;
-        void push(T&& d){
+        virtual void push(T&& d){
             std::lock_guard<std::mutex> lock(mtx);
             data.emplace_back(std::move(d));
         }
-        void push(T& ref){
+        virtual void push(T& ref){
             std::lock_guard<std::mutex> lock(mtx);
             data.emplace_back(ref);
         }
-        bool pop(T& d){
+        virtual bool pop(T& d){
             std::lock_guard<std::mutex> lock(mtx);
             if(data.empty()) return false;
             d = data.front();
@@ -43,6 +55,32 @@ namespace totoro {
         }
     };
 
+    template<typename T>
+    struct BlockChannel : Channel<T> {
+        counting_semaphore<0> sem;
+        void push(T&& d) override{
+            std::lock_guard<std::mutex> lock(Channel<T>::mtx);
+            Channel<T>::data.emplace_back(std::move(d));
+            sem.release();
+        }
+        void push(T& ref) override{
+            std::lock_guard<std::mutex> lock(Channel<T>::mtx);
+            Channel<T>::data.emplace_back(ref);
+            sem.release();
+        }
+        bool pop(T& d) override{
+            sem.acquire();
+            std::lock_guard<std::mutex> lock(Channel<T>::mtx);
+            if(Channel<T>::data.empty()) return false;
+            d = Channel<T>::data.front();
+            Channel<T>::data.pop_front();
+            return true;
+        }
+        size_t size(){
+            std::lock_guard<std::mutex> lock(Channel<T>::mtx);
+            return Channel<T>::data.size();
+        }
+    };
 } // totoro
 
 #endif //TOTOROSERVER_CHANNEL_H

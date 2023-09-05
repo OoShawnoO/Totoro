@@ -29,6 +29,10 @@ namespace totoro {
         Socket::Close();
     }
 
+    int Socket::Sock() {
+        return sock;
+    }
+
     /* TCP Impl */
     TCPSocket::TCPSocket() {
         type = SOCK_STREAM;
@@ -79,6 +83,7 @@ namespace totoro {
                 return -1;
             }
             data.append(readBuffer,hadRecv);
+            if(readTotalBytes == SIZE_MAX) return 0;
             readCursor += hadRecv;
         }
         isNew = true;
@@ -263,6 +268,7 @@ namespace totoro {
 
     int TCPSocket::RecvWithHeader(std::string &data) {
         if(isNew){
+            data.clear();
             header h{};
             if(::recv(sock,&h,TCP_HEADER_SIZE,0) <= 0){
                 return false;
@@ -276,6 +282,7 @@ namespace totoro {
 
     int TCPSocket::Recv(std::string &data, size_t size) {
         if(isNew){
+            data.clear();
             readTotalBytes = size;
             readCursor = 0;
             isNew = false;
@@ -328,6 +335,11 @@ namespace totoro {
 
     void TCPSocket::Close() {
         Socket::Close();
+    }
+
+    void TCPSocket::Init(int _sock, sockaddr_in _destAddr) {
+        sock = _sock;
+        destAddr = _destAddr;
     }
 
     /* udp Impl*/
@@ -406,19 +418,21 @@ namespace totoro {
         return true;
     }
 
-    bool UDPSocket::Listen() {
-        if(listen(sock,1024) < 0){
-            LOG_ERROR("Socket",strerror(errno));
-            return false;
-        }
-        return false;
-    }
-
     void UDPSocket::SetDestAddr(const std::string &ip, short port){
         destAddr.sin_addr.s_addr = inet_addr(ip.c_str());
         destAddr.sin_port = htons(port);
         destAddr.sin_family = type;
         destAddrLen = sizeof(destAddr);
+    }
+
+    bool UDPSocket::Init(const std::string &ip, short port, const std::string &destIP, short destPort) {
+        SetDestAddr(destIP,destPort);
+        return Init(ip,port);
+    }
+
+    void UDPSocket::Init(int _sock, sockaddr_in _destAddr) {
+        sock = _sock;
+        destAddr = _destAddr;
     }
 
     int UDPSocket::SendWithHeader(const char *data,size_t size) {
@@ -508,6 +522,7 @@ namespace totoro {
 
     int UDPSocket::Recv(std::string &data, size_t size) {
         if(isNew){
+            data.clear();
             readCursor = 0;
             readTotalBytes = size;
             if(readTotalBytes < 1) return -1;
@@ -518,6 +533,7 @@ namespace totoro {
 
     bool UDPSocket::RecvAll(std::string &data) {
         if(isNew){
+            data.clear();
             readCursor = 0;
             readTotalBytes = SIZE_MAX;
             if(readTotalBytes < 1) return -1;
@@ -563,5 +579,4 @@ namespace totoro {
     void UDPSocket::Close() {
         Socket::Close();
     }
-
 } // totoro

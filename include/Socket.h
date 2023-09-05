@@ -10,7 +10,7 @@
 
 namespace totoro {
 #define SOCKET_BUF_SIZE 4096
-
+#define BAD_FILE_DESCRIPTOR (-1)
     class Socket {
     protected:
         bool isNew                          {true};
@@ -33,8 +33,8 @@ namespace totoro {
     public:
         virtual ~Socket();
         virtual bool Init(const std::string& ip,short port) = 0;
+        virtual void Init(int _sock,sockaddr_in _destAddr) = 0;
         virtual inline bool Bind() = 0;
-        virtual inline bool Listen() = 0;
         virtual int SendWithHeader(const char* data,size_t size);
         virtual int SendWithHeader(std::string& data);
         virtual int SendWithHeader(std::string&& data);
@@ -49,6 +49,7 @@ namespace totoro {
         virtual bool RecvAll(std::string& data) = 0;
         virtual int RecvFile(const std::string& filePath) = 0;
 
+        int Sock();
         virtual void Close();
     };
 
@@ -67,8 +68,9 @@ namespace totoro {
         ~TCPSocket() override;
         bool Init(const std::string& ip,short port) override;
         void Init();
-        inline bool Bind() override;
-        inline bool Listen() override;
+        void Init(int _sock,sockaddr_in _destAddr) override;
+        bool Bind() override;
+        bool Listen();
         bool Accept(TCPSocket& tcpSocket);
         bool Connect(const std::string& ip,short port);
         int SendWithHeader(const char* data,size_t size) override;
@@ -96,9 +98,10 @@ namespace totoro {
         UDPSocket();
         ~UDPSocket() override;
         bool Init(const std::string& ip,short port) override;
+        bool Init(const std::string& ip,short port,const std::string& destIP,short destPort);
+        void Init(int _sock,sockaddr_in _destAddr) override;
         void SetDestAddr(const std::string& ip,short port);
-        inline bool Bind() override;
-        inline bool Listen() override;
+        bool Bind() override;
         int SendWithHeader(const char* data,size_t size) override;
         int SendWithHeader(std::string& data) override;
         int SendWithHeader(std::string&& data) override;
