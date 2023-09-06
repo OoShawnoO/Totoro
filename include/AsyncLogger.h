@@ -1,10 +1,10 @@
 #ifndef TOTOROSERVER_ASYNCLOGGER_H
 #define TOTOROSERVER_ASYNCLOGGER_H
 
-#include <string>
-#include <thread>
-#include <unordered_map>
-#include "Channel.h"
+#include <string>           /* string */
+#include <thread>           /* thread */
+#include <unordered_map>    /* unordered_map */
+#include "Channel.h"        /* Semaphore Channel */
 
 namespace totoro {
 

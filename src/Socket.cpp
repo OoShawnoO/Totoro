@@ -20,17 +20,32 @@ namespace totoro {
         return 1;
     }
 
-    void Socket::Close() {
+    int Socket::Close() {
         if(sock != -1){ close(sock); sock = -1;}
         if(file != -1){ close(file); file = -1;}
+        return -1;
     }
 
     Socket::~Socket() {
         Socket::Close();
     }
 
-    int Socket::Sock() {
+    int Socket::Sock() const {
         return sock;
+    }
+
+    sockaddr_in Socket::DestAddr() const {
+        return destAddr;
+    }
+
+    sockaddr_in Socket::Addr() const{
+        return myAddr;
+    }
+
+    void Socket::Init(int _sock, sockaddr_in _myAddr, sockaddr_in _destAddr) {
+        sock = _sock;
+        myAddr = _myAddr;
+        destAddr = _destAddr;
     }
 
     /* TCP Impl */
@@ -48,9 +63,10 @@ namespace totoro {
             needSend = writeTotalBytes - writeCursor;
             if((hadSend = ::send(sock,data + writeCursor,needSend,MSG_NOSIGNAL)) <= 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
-                    isNew = false;
+                    isNew = true;
                     return 0;
                 }
+                isNew = true;
                 return -1;
             }
             writeCursor += hadSend;
@@ -72,18 +88,18 @@ namespace totoro {
         if(readTotalBytes != SIZE_MAX && data.size() < readTotalBytes){
             data.reserve(readTotalBytes);
         }
+        int flag = readTotalBytes == SIZE_MAX ? MSG_DONTWAIT : 0;
         while(readCursor < readTotalBytes){
-            bzero(readBuffer,SOCKET_BUF_SIZE);
-            needRecv = readTotalBytes - readCursor;
-            if((hadRecv = ::recv(sock,readBuffer,needRecv,0)) <= 0){
+            bzero(buffer,SOCKET_BUF_SIZE);
+            needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
+            if((hadRecv = ::recv(sock,buffer,needRecv,flag)) <= 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
-                    isNew = false;
+                    isNew = true;
                     return 0;
                 }
                 return -1;
             }
-            data.append(readBuffer,hadRecv);
-            if(readTotalBytes == SIZE_MAX) return 0;
+            data.append(buffer,hadRecv);
             readCursor += hadRecv;
         }
         isNew = true;
@@ -91,10 +107,7 @@ namespace totoro {
     }
 
     TCPSocket::~TCPSocket() {
-        if(sock != -1){
-            close(sock);
-            sock = -1;
-        }
+        TCPSocket::Close();
     }
 
     bool TCPSocket::Init(const std::string &ip, short port) {
@@ -147,6 +160,7 @@ namespace totoro {
             LOG_ERROR("Socket", strerror(errno));
             return false;
         }
+        tcpSocket.myAddr = myAddr;
         return true;
     }
 
@@ -240,7 +254,7 @@ namespace totoro {
             fstat(file,&stat);
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
-            if(send(sock,&writeTotalBytes,sizeof(writeTotalBytes),0) < 0){
+            if(send(sock,&writeTotalBytes,SOCKET_BUF_SIZE,0) < 0){
                 LOG_ERROR("Socket", strerror(errno));
                 return -1;
             }
@@ -293,12 +307,8 @@ namespace totoro {
     bool TCPSocket::RecvAll(std::string &data) {
         readTotalBytes = SIZE_MAX;
         readCursor = 0;
-        bool ret = recvImpl(data) == 0;
-        if(!ret){
-            readTotalBytes = 0;
-            readCursor = 0;
-        }
-        return ret;
+        data.clear();
+        return recvImpl(data) == 0;
     }
 
     int TCPSocket::RecvFile(const std::string &filePath) {
@@ -310,13 +320,15 @@ namespace totoro {
             }
             readCursor = 0;
             readTotalBytes = size;
-            file = open(filePath.c_str(),O_CREAT | O_WRONLY);
+            file = open(filePath.c_str(),O_CREAT | O_WRONLY,777);
             isNew = false;
         }
         ssize_t hadRecv;
+        size_t needRecv;
         while(readCursor < readTotalBytes){
-            bzero(readBuffer,SOCKET_BUF_SIZE);
-            if((hadRecv = ::recv(sock,readBuffer,readTotalBytes - readCursor,0)) < 0){
+            bzero(buffer,SOCKET_BUF_SIZE);
+            needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
+            if((hadRecv = ::recv(sock,buffer,needRecv,0)) < 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
                     isNew = false;
                     return 0;
@@ -325,7 +337,7 @@ namespace totoro {
                 file = -1;
                 return -1;
             }
-            write(file,readBuffer,hadRecv);
+            write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
         close(file);
@@ -333,13 +345,8 @@ namespace totoro {
         return 1;
     }
 
-    void TCPSocket::Close() {
-        Socket::Close();
-    }
-
-    void TCPSocket::Init(int _sock, sockaddr_in _destAddr) {
-        sock = _sock;
-        destAddr = _destAddr;
+    int TCPSocket::Close() {
+        return Socket::Close();
     }
 
     /* udp Impl*/
@@ -351,8 +358,8 @@ namespace totoro {
         size_t hadSend,needSend;
         while(writeCursor < writeTotalBytes){
             needSend = (writeTotalBytes - writeCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : writeTotalBytes - writeCursor;
-            memcpy(writeBuffer,data + writeCursor,needSend);
-            if((hadSend = sendto(sock,writeBuffer,needSend,
+            memcpy(buffer,data + writeCursor,needSend);
+            if((hadSend = sendto(sock,buffer,needSend,
                                  MSG_NOSIGNAL,(sockaddr*)&destAddr,sizeof(destAddr))) < 0){
                 if(errno == EWOULDBLOCK || errno == EAGAIN){
                     isNew = false;
@@ -374,10 +381,10 @@ namespace totoro {
             data.reserve(readTotalBytes);
         }
         while(readCursor < readTotalBytes){
-            bzero(readBuffer,SOCKET_BUF_SIZE);
+            bzero(buffer,SOCKET_BUF_SIZE);
             memset(&destAddr,0,sizeof(destAddr));
             needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
-            if((hadRecv = ::recvfrom(sock,readBuffer,needRecv,0,(struct sockaddr*)&destAddr,&destAddrLen)) <= 0){
+            if((hadRecv = ::recvfrom(sock,buffer,needRecv,0,(struct sockaddr*)&destAddr,&destAddrLen)) <= 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
                     isNew = false;
                     return 0;
@@ -385,7 +392,7 @@ namespace totoro {
                 LOG_ERROR("Socket", strerror(errno));
                 return -1;
             }
-            data.append(readBuffer,hadRecv);
+            data.append(buffer,hadRecv);
             readCursor += hadRecv;
         }
         isNew = true;
@@ -393,10 +400,7 @@ namespace totoro {
     }
 
     UDPSocket::~UDPSocket() {
-        if(sock != -1){
-            close(sock);
-            sock = -1;
-        }
+        UDPSocket::Close();
     }
 
     bool UDPSocket::Init(const std::string &ip, short port) {
@@ -428,11 +432,6 @@ namespace totoro {
     bool UDPSocket::Init(const std::string &ip, short port, const std::string &destIP, short destPort) {
         SetDestAddr(destIP,destPort);
         return Init(ip,port);
-    }
-
-    void UDPSocket::Init(int _sock, sockaddr_in _destAddr) {
-        sock = _sock;
-        destAddr = _destAddr;
     }
 
     int UDPSocket::SendWithHeader(const char *data,size_t size) {
@@ -485,7 +484,7 @@ namespace totoro {
             fstat(file,&stat);
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
-            if(sendto(sock,&writeTotalBytes,sizeof(writeTotalBytes),0,(sockaddr*)&destAddr,destAddrLen) < 0){
+            if(sendto(sock,&writeTotalBytes,SOCKET_BUF_SIZE,0,(sockaddr*)&destAddr,destAddrLen) < 0){
                 LOG_ERROR("Socket", strerror(errno));
                 return -1;
             }
@@ -493,12 +492,12 @@ namespace totoro {
         }
         size_t hadSend;
         while(writeCursor < writeTotalBytes){
-            bzero(writeBuffer,sizeof(writeBuffer));
-            ssize_t hadRead = read(file,writeBuffer,sizeof(writeBuffer));
-            if(hadRead < 0){
+            bzero(buffer,SOCKET_BUF_SIZE);
+            ssize_t hadRead = read(file,buffer,SOCKET_BUF_SIZE);
+            if(hadRead <= 0){
                 return -1;
             }
-            if((hadSend = sendto(sock,writeBuffer,hadRead,0,(sockaddr*)&destAddr,sizeof(destAddr))) < 0){
+            if((hadSend = sendto(sock,buffer,hadRead,0,(sockaddr*)&destAddr,sizeof(destAddr))) < 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK) return 0;
                 return -1;
             }
@@ -557,9 +556,9 @@ namespace totoro {
         ssize_t hadRecv;
         size_t needRecv;
         while(readCursor < readTotalBytes){
-            bzero(readBuffer,SOCKET_BUF_SIZE);
+            bzero(buffer,SOCKET_BUF_SIZE);
             needRecv = readTotalBytes - readCursor > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : readTotalBytes - readCursor;
-            if((hadRecv = ::recvfrom(sock,readBuffer,needRecv,0,(sockaddr*)&destAddr,&destAddrLen)) < 0){
+            if((hadRecv = ::recvfrom(sock,buffer,needRecv,0,(sockaddr*)&destAddr,&destAddrLen)) < 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
                     isNew = false;
                     return 0;
@@ -568,7 +567,7 @@ namespace totoro {
                 file = -1;
                 return -1;
             }
-            write(file,readBuffer,hadRecv);
+            write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
         close(file);
@@ -576,7 +575,7 @@ namespace totoro {
         return 1;
     }
 
-    void UDPSocket::Close() {
-        Socket::Close();
+    int UDPSocket::Close() {
+        return Socket::Close();
     }
 } // totoro

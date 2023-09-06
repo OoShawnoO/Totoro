@@ -1,7 +1,7 @@
 #ifndef TOTOROSERVER_POOL_H
 #define TOTOROSERVER_POOL_H
 
-#include "Channel.h"
+#include "Channel.h"        /* Channel */
 
 namespace totoro {
     template<class T>
@@ -26,6 +26,7 @@ namespace totoro {
         }
         void release(std::shared_ptr<T>& ptr){
             pool.push(ptr);
+            ptr.reset();
         }
     };
 

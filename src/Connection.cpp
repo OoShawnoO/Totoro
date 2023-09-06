@@ -1,7 +1,5 @@
-#include <iostream>
 #include <sys/epoll.h>
 #include <fcntl.h>
-#include <cstring>
 #include "Connection.h"
 
 namespace totoro {
@@ -13,37 +11,49 @@ namespace totoro {
         oneShot = _oneShot;
     }
 
-    int Connection::EpollAdd() {
+    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr, EpollID _epollId, bool _edgeTriggle, bool _oneShot) {
+        Socket::Init(sock,myAddr,destAddr);
+        epollId = _epollId;
+        edgeTriggle = _edgeTriggle;
+        oneShot = _oneShot;
+        return -1;
+    }
+
+    int Connection::EpollAdd(SocketID _sock) {
         epoll_event ev{};
-        ev.data.fd = sock;
+        ev.data.fd = _sock;
         ev.events = EPOLLIN | EPOLLRDHUP;
         ev.events = (edgeTriggle ? ev.events | EPOLLET : ev.events);
         ev.events = (oneShot ? ev.events | EPOLLONESHOT : ev.events);
-        int option = fcntl(sock,F_GETFL);
+        int option = fcntl(_sock,F_GETFL);
         int newOption = option | O_NONBLOCK;
-        fcntl(sock,newOption);
-        return epoll_ctl(epollId,EPOLL_CTL_ADD,sock,&ev);
+        fcntl(_sock,newOption);
+        return epoll_ctl(epollId,EPOLL_CTL_ADD,_sock,&ev);
     }
 
-    int Connection::EpollMod(uint32_t ev) {
+    int Connection::EpollMod(SocketID _sock,uint32_t ev) {
         epoll_event event{};
-        event.data.fd = sock;
+        event.data.fd = _sock;
         event.events = ev | EPOLLRDHUP;
         event.events = edgeTriggle ? event.events | EPOLLET : event.events;
         event.events = oneShot ? event.events | EPOLLONESHOT : event.events;
-        return epoll_ctl(epollId,EPOLL_CTL_MOD,sock,&event);
+        return epoll_ctl(epollId,EPOLL_CTL_MOD,_sock,&event);
     }
 
-    void Connection::RegisterNextEvent(Connection::Status nextStatus,bool isMod = false) {
+    int Connection::EpollDel(SocketID _sock) {
+        return epoll_ctl(epollId,EPOLL_CTL_DEL,_sock,nullptr);
+    }
+
+    void Connection::RegisterNextEvent(SocketID _sock,Connection::Status nextStatus,bool isMod = false) {
         status = nextStatus;
         if(!isMod) return;
         switch(status){
             case Read : {
-                EpollMod(EPOLLIN);
+                EpollMod(_sock,EPOLLIN);
                 break;
             }
             case Write : {
-                EpollMod(EPOLLOUT);
+                EpollMod(_sock,EPOLLOUT);
                 break;
             }
             default:{}
@@ -58,11 +68,16 @@ namespace totoro {
     }
 
     int Connection::AfterReadCallback() {
-        std::cout << data << std::endl;
         return 1;
     }
 
     int Connection::WriteCallback() {
+        data.clear();
+        data = "HTTP/1.1 200 OK\n"
+               "Content-Type: text/html\n"
+               "Content-Length: 6\n"
+               "\n"
+               "123456";
         if(TCPSocket::SendAll(data)){
             return 1;
         }
@@ -70,7 +85,7 @@ namespace totoro {
     }
 
     int Connection::AfterWriteCallback() {
-        RegisterNextEvent(Read,true);
+        RegisterNextEvent(sock,Read,true);
         return 1;
     }
 
@@ -103,8 +118,11 @@ namespace totoro {
                     break;
                 }
                 case AfterRead : {
-                    if(AfterReadCallback()){
+                    ret = AfterReadCallback();
+                    if(ret == 1){
                         status = Write;
+                    }else if(ret == 0){
+                        status = None;
                     }else{
                         LOG_ERROR("Connection","AfterReadCallback failed");
                         status = Error;
@@ -112,7 +130,8 @@ namespace totoro {
                     break;
                 }
                 case AfterWrite : {
-                    if(AfterWriteCallback()){
+                    ret = AfterWriteCallback();
+                    if(ret >= 0){
                         status = None;
                     }else{
                         LOG_ERROR("Connection","AfterWriteCallback failed");
@@ -129,13 +148,17 @@ namespace totoro {
         }
     }
 
-    void Connection::Close() {
-        TCPSocket::Close();
+    int Connection::Close() {
         status = None;
+        return TCPSocket::Close();
     }
 
     Connection::~Connection() {
         Connection::Close();
+    }
+
+    void Connection::SetWorkSock(SocketID _sock) {
+        workSock = _sock;
     }
 }
 

@@ -1,10 +1,10 @@
 #ifndef TOTOROSERVER_THREADPOOL_H
 #define TOTOROSERVER_THREADPOOL_H
 
-#include <atomic>
-#include <vector>
-#include "AsyncLogger.h"
-#include "Channel.h"
+#include <atomic>           /* atomic */
+#include <vector>           /* vector */
+#include "AsyncLogger.h"    /* AsyncLogger */
+#include "Channel.h"        /* Channel */
 
 
 namespace totoro {

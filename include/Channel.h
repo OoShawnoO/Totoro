@@ -1,9 +1,9 @@
 #ifndef TOTOROSERVER_CHANNEL_H
 #define TOTOROSERVER_CHANNEL_H
 
-#include <mutex>
-#include <condition_variable>
-#include <deque>
+#include <mutex>                /* mutex */
+#include <condition_variable>   /* condition_variable */
+#include <deque>                /* deque */
 
 namespace totoro {
     template<size_t _least_max_value = SIZE_MAX>
@@ -13,13 +13,11 @@ namespace totoro {
     public:
         counting_semaphore() = default;
         explicit counting_semaphore(size_t desire) : count(desire){};
-        //V操作，唤醒
         void acquire(){
             std::unique_lock<std::mutex> lock(mt);
             cond.wait(lock,[&]{return count > 0;});
             --count;
         }
-        //P操作，阻塞
         void release(){
             std::unique_lock<std::mutex> lock(mt);
             ++count;

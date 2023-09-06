@@ -6,7 +6,7 @@
 #include <string>           /* string */
 #include "AsyncLogger.h"    /* AsyncLogger */
 #include <sys/stat.h>       /* stat */
-#include <vector>
+#include <vector>           /* vector */
 
 namespace totoro {
 #define SOCKET_BUF_SIZE 4096
@@ -15,15 +15,14 @@ namespace totoro {
     protected:
         bool isNew                          {true};
         int type                            {SOCK_STREAM};
-        char readBuffer[SOCKET_BUF_SIZE]  = {0};
-        char writeBuffer[SOCKET_BUF_SIZE] = {0};
+        char buffer[SOCKET_BUF_SIZE] = {0};
         size_t readCursor                   {0};
         size_t writeCursor                  {0};
         size_t readTotalBytes               {0};
         size_t writeTotalBytes              {0};
-        int file                            {-1};
+        int file                            {BAD_FILE_DESCRIPTOR};
         struct stat stat                    {};
-        int sock                            {-1};
+        int sock                            {BAD_FILE_DESCRIPTOR};
         sockaddr_in myAddr                  {};
         sockaddr_in destAddr                {};
         socklen_t   destAddrLen             {};
@@ -33,7 +32,7 @@ namespace totoro {
     public:
         virtual ~Socket();
         virtual bool Init(const std::string& ip,short port) = 0;
-        virtual void Init(int _sock,sockaddr_in _destAddr) = 0;
+        virtual void Init(int _sock,sockaddr_in _myAddr,sockaddr_in _destAddr);
         virtual inline bool Bind() = 0;
         virtual int SendWithHeader(const char* data,size_t size);
         virtual int SendWithHeader(std::string& data);
@@ -49,8 +48,10 @@ namespace totoro {
         virtual bool RecvAll(std::string& data) = 0;
         virtual int RecvFile(const std::string& filePath) = 0;
 
-        int Sock();
-        virtual void Close();
+        int Sock() const;
+        sockaddr_in Addr() const;
+        sockaddr_in DestAddr() const;
+        virtual int Close();
     };
 
     class TCPSocket : public Socket {
@@ -68,7 +69,6 @@ namespace totoro {
         ~TCPSocket() override;
         bool Init(const std::string& ip,short port) override;
         void Init();
-        void Init(int _sock,sockaddr_in _destAddr) override;
         bool Bind() override;
         bool Listen();
         bool Accept(TCPSocket& tcpSocket);
@@ -87,7 +87,7 @@ namespace totoro {
         bool RecvAll(std::string& data) override;
         int RecvFile(const std::string& filePath) override;
 
-        void Close() override;
+        int Close() override;
     };
 
     class UDPSocket : public Socket {
@@ -99,7 +99,6 @@ namespace totoro {
         ~UDPSocket() override;
         bool Init(const std::string& ip,short port) override;
         bool Init(const std::string& ip,short port,const std::string& destIP,short destPort);
-        void Init(int _sock,sockaddr_in _destAddr) override;
         void SetDestAddr(const std::string& ip,short port);
         bool Bind() override;
         int SendWithHeader(const char* data,size_t size) override;
@@ -116,7 +115,7 @@ namespace totoro {
         bool RecvAll(std::string& data) override;
         int RecvFile(const std::string& filePath) override;
 
-        void Close() override;
+        int Close() override;
     };
 } // totoro
 
