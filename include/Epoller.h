@@ -7,6 +7,7 @@
 #include "Pool.h"           /* Pool */
 #include "ThreadPool.h"     /* ThreadPool */
 
+static const std::string EpollerChan = "Epoller";
 namespace totoro {
     /**
      * @brief 负责连接资源获取、事件监听与分发 \n Responsible for connecting resource acquisition, event monitoring, and distribution
@@ -58,12 +59,12 @@ namespace totoro {
                 typename std::unordered_map<SocketID,std::pair<sockaddr_in,sockaddr_in>>::iterator iter;
                 if(!connectionPool.acquire(conn)){
                     close(cur);
-                    LOG_ERROR("Epoller","connection pool acquire failed");
+                    LOG_ERROR(EpollerChan,"connection pool acquire failed");
                     return false;
                 }
                 if((iter = candidateMap.find(cur)) == candidateMap.end()){
                     close(cur);
-                    LOG_ERROR("Epoller","not found candidate addr");
+                    LOG_ERROR(EpollerChan,"not found candidate addr");
                     return false;
                 }
                 int ret = conn->Init(cur,iter->second.first,iter->second.second,id,edgeTriggle,oneShot);
@@ -76,14 +77,14 @@ namespace totoro {
                 std::pair<typename std::unordered_map<SocketID,std::shared_ptr<T>>::iterator,bool> result;
                 if(ret > 0){
                     if(EpollAdd(ret) < 0){
-                        LOG_ERROR("Epoller","epoll add new failed");
+                        LOG_ERROR(EpollerChan,"epoll add new failed");
                         conn->Close();
                         connectionPool.release(conn);
                         return false;
                     }
                     result = connectionMap.insert({ret,conn});
                     if(!result.second){
-                        LOG_ERROR("Epoller","connectionMap already have key");
+                        LOG_ERROR(EpollerChan,"connectionMap already have key");
                         conn->Close();
                         connectionPool.release(conn);
                         return false;
@@ -91,7 +92,7 @@ namespace totoro {
                 }
                 result = connectionMap.insert({cur,conn});
                 if(!result.second){
-                    LOG_ERROR("Epoller","connectionMap already have key");
+                    LOG_ERROR(EpollerChan,"connectionMap already have key");
                     conn->Close();
                     connectionPool.release(conn);
                     return false;
@@ -109,7 +110,7 @@ namespace totoro {
             while(!isStop){
                 if((ret = epoll_wait(id,events,4096,timeOut)) < 0){
                     if(errno == EINTR) continue;
-                    LOG_ERROR("Epoller","epoll wait failed");
+                    LOG_ERROR(EpollerChan,"epoll wait failed");
                     exit(-1);
                 }
                 for(index = 0;index < ret;index++ ){
@@ -119,11 +120,11 @@ namespace totoro {
                     connection->SetWorkSock(cur);
                     auto event = events[index].events;
                     if(event & EPOLLRDHUP){
-                        LOG_INFO("Epoller",std::to_string(cur));
-                        LOG_INFO("Epoller","client close");
+                        LOG_INFO(EpollerChan,std::to_string(cur));
+                        LOG_INFO(EpollerChan,"client close");
                         DelConnection(connection);
                     }else if(event & EPOLLERR){
-                        LOG_ERROR("Epoller","epoll error");
+                        LOG_ERROR(EpollerChan,"epoll error");
                         DelConnection(connection);
                     }else if(event & EPOLLIN){
                         connection->RegisterNextEvent(cur,Connection::Read,false);
@@ -132,7 +133,7 @@ namespace totoro {
                         connection->RegisterNextEvent(cur,Connection::Write,false);
                         threadPool.Add(connection);
                     }else{
-                        LOG_ERROR("Epoller","unknown error");
+                        LOG_ERROR(EpollerChan,"unknown error");
                         DelConnection(connection);
                     }
                 }
@@ -144,7 +145,7 @@ namespace totoro {
         isStop(_isStop),edgeTriggle(_et),
         oneShot(_oneShot),noneBlock(_noneBlock){
             if((id =epoll_create(1234)) < 0){
-                LOG_ERROR("Epoller","create epoll failed");
+                LOG_ERROR(EpollerChan,"create epoll failed");
                 exit(-1);
             }
         }

@@ -37,9 +37,9 @@ namespace totoro {
         virtual int AfterReadCallback();
         virtual int WriteCallback();
         virtual int AfterWriteCallback();
-        virtual int EpollMod(SocketID sock,uint32_t ev);
-        virtual int EpollAdd(SocketID sock);
-        virtual int EpollDel(SocketID sock);
+        int EpollMod(SocketID sock,uint32_t ev) const;
+        int EpollAdd(SocketID sock) const;
+        int EpollDel(SocketID sock) const;
     };
 
 } // totoro

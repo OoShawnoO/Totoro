@@ -2,7 +2,7 @@
 #include <fcntl.h>          /* fcntl */
 #include <sys/sendfile.h>   /* sendfile */
 #include "Socket.h"         /* Socket */
-
+static const std::string SocketChan = SocketChan;
 namespace totoro {
     int Socket::SendWithHeader(const char *data,size_t size) {
         return 1;
@@ -116,12 +116,12 @@ namespace totoro {
             sock = -1;
         }
         if((sock = socket(AF_INET,type,0)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         int reuse = 1;
         if(setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(reuse)) < 0){
-            LOG_ERROR("Socket", strerror(errno));
+            LOG_ERROR(SocketChan, strerror(errno));
             return false;
         }
 
@@ -133,11 +133,11 @@ namespace totoro {
 
     bool TCPSocket::Bind() {
         if(sock == -1){
-            LOG_ERROR("Socket","please bind after create socket.");
+            LOG_ERROR(SocketChan,"please bind after create socket.");
             return false;
         }
         if(bind(sock,(sockaddr*)&myAddr,sizeof(myAddr)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         return true;
@@ -145,11 +145,11 @@ namespace totoro {
 
     bool TCPSocket::Listen() {
         if(sock == -1){
-            LOG_ERROR("Socket","please listen after create socket.");
+            LOG_ERROR(SocketChan,"please listen after create socket.");
             return false;
         }
         if(listen(sock,1024) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         return true;
@@ -157,7 +157,7 @@ namespace totoro {
 
      bool TCPSocket::Accept(TCPSocket& tcpSocket) {
         if((tcpSocket.sock = accept(sock,(sockaddr*)&tcpSocket.destAddr,&tcpSocket.destAddrLen)) < 0){
-            LOG_ERROR("Socket", strerror(errno));
+            LOG_ERROR(SocketChan, strerror(errno));
             return false;
         }
         tcpSocket.myAddr = myAddr;
@@ -170,7 +170,7 @@ namespace totoro {
             sock = -1;
         }
         if((sock = socket(AF_INET,type,0)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         sockaddr_in destAddr{};
@@ -178,7 +178,7 @@ namespace totoro {
         destAddr.sin_family = AF_INET;
         destAddr.sin_addr.s_addr = inet_addr(ip.c_str());
         if(connect(sock,(sockaddr*)&destAddr,sizeof(destAddr)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         return true;
@@ -190,7 +190,7 @@ namespace totoro {
             sock = -1;
         }
         if((sock = socket(AF_INET,type,0)) < 0 ){
-            LOG_ERROR("Socket", strerror(errno));
+            LOG_ERROR(SocketChan, strerror(errno));
             return;
         }
     }
@@ -247,7 +247,7 @@ namespace totoro {
         if(isNew){
             file = open(filePath.c_str(),O_RDONLY);
             if(file < 0){
-                LOG_ERROR("Socket",strerror(errno));
+                LOG_ERROR(SocketChan,strerror(errno));
                 return -1;
             }
             memset(&stat,0,sizeof(stat));
@@ -255,7 +255,7 @@ namespace totoro {
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
             if(send(sock,&writeTotalBytes,SOCKET_BUF_SIZE,0) < 0){
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
         }
@@ -267,7 +267,7 @@ namespace totoro {
                     isNew = false;
                     return 0;
                 }
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 close(file);
                 file = -1;
                 return -1;
@@ -315,7 +315,7 @@ namespace totoro {
         if(isNew){
             size_t size;
             if(recv(sock,&size,sizeof(size),0) < 0){
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
             readCursor = 0;
@@ -389,7 +389,7 @@ namespace totoro {
                     isNew = false;
                     return 0;
                 }
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
             data.append(buffer,hadRecv);
@@ -405,7 +405,7 @@ namespace totoro {
 
     bool UDPSocket::Init(const std::string &ip, short port) {
         if((sock = socket(AF_INET,type,0)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         myAddr.sin_addr.s_addr = inet_addr(ip.c_str());
@@ -416,7 +416,7 @@ namespace totoro {
 
     bool UDPSocket::Bind() {
         if(bind(sock,(sockaddr*)&myAddr,sizeof(myAddr)) < 0){
-            LOG_ERROR("Socket",strerror(errno));
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
         return true;
@@ -436,7 +436,7 @@ namespace totoro {
 
     int UDPSocket::SendWithHeader(const char *data,size_t size) {
         if(sendto(sock,&size,sizeof(size),0,(sockaddr*)&destAddr,destAddrLen) < 0){
-            LOG_ERROR("Socket", strerror(errno));
+            LOG_ERROR(SocketChan, strerror(errno));
             return -1;
         }
         return Send(data,size);
@@ -485,7 +485,7 @@ namespace totoro {
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
             if(sendto(sock,&writeTotalBytes,SOCKET_BUF_SIZE,0,(sockaddr*)&destAddr,destAddrLen) < 0){
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
             isNew = false;
@@ -513,7 +513,7 @@ namespace totoro {
     int UDPSocket::RecvWithHeader(std::string &data) {
         size_t size;
         if(recvfrom(sock,&size,sizeof(size_t),0,(sockaddr*)&destAddr,&destAddrLen) < 0){
-            LOG_ERROR("Socket", strerror(errno));
+            LOG_ERROR(SocketChan, strerror(errno));
             return -1;
         }
         return Recv(data,size);
@@ -545,7 +545,7 @@ namespace totoro {
         if(isNew){
             size_t size;
             if(recvfrom(sock,&size,sizeof(size),0,(sockaddr*)&destAddr,&destAddrLen) < 0){
-                LOG_ERROR("Socket", strerror(errno));
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
             readCursor = 0;

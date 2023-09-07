@@ -2,8 +2,9 @@
 #include <fcntl.h>
 #include "Connection.h"
 
+const std::string ConnectionChan = "Connection";
 namespace totoro {
-
+    /* Init Impl */
     void Connection::Init(TCPSocket& tcpSocket,EpollID _epollId,bool _edgeTriggle,bool _oneShot){
         TCPSocket::operator=(tcpSocket);
         epollId = _epollId;
@@ -18,8 +19,8 @@ namespace totoro {
         oneShot = _oneShot;
         return -1;
     }
-
-    int Connection::EpollAdd(SocketID _sock) {
+    /* About Epoll Impl */
+    int Connection::EpollAdd(SocketID _sock) const {
         epoll_event ev{};
         ev.data.fd = _sock;
         ev.events = EPOLLIN | EPOLLRDHUP;
@@ -31,7 +32,7 @@ namespace totoro {
         return epoll_ctl(epollId,EPOLL_CTL_ADD,_sock,&ev);
     }
 
-    int Connection::EpollMod(SocketID _sock,uint32_t ev) {
+    int Connection::EpollMod(SocketID _sock,uint32_t ev) const {
         epoll_event event{};
         event.data.fd = _sock;
         event.events = ev | EPOLLRDHUP;
@@ -40,8 +41,12 @@ namespace totoro {
         return epoll_ctl(epollId,EPOLL_CTL_MOD,_sock,&event);
     }
 
-    int Connection::EpollDel(SocketID _sock) {
+    int Connection::EpollDel(SocketID _sock) const {
         return epoll_ctl(epollId,EPOLL_CTL_DEL,_sock,nullptr);
+    }
+    /* Public Impl */
+    Connection::~Connection() {
+        Connection::Close();
     }
 
     void Connection::RegisterNextEvent(SocketID _sock,Connection::Status nextStatus,bool isMod = false) {
@@ -60,6 +65,77 @@ namespace totoro {
         }
     }
 
+    void Connection::Run() {
+        while(status != None){
+            int ret;
+            switch (status) {
+                case Read : {
+                    ret = ReadCallback();
+                    switch(ret){
+                        case 1 : status = AfterRead; break;
+                        case 0 : status = None; break;
+                        default: {
+                            LOG_ERROR(ConnectionChan,"ReadCallback failed");
+                            status = Error;
+                        }
+                    }
+                    break;
+                }
+                case Write : {
+                    ret = WriteCallback();
+                    switch(ret){
+                        case 1 : status = AfterWrite; break;
+                        case 0 : status = None; break;
+                        default: {
+                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
+                            status = Error;
+                        }
+                    }
+                    break;
+                }
+                case AfterRead : {
+                    ret = AfterReadCallback();
+                    switch(ret){
+                        case 1 : status = Write; break;
+                        case 0 : status = None; break;
+                        default: {
+                            LOG_ERROR(ConnectionChan,"AfterReadCallback failed");
+                            status = Error;
+                        }
+                    }
+                    break;
+                }
+                case AfterWrite : {
+                    ret = AfterWriteCallback();
+                    switch(ret) {
+                        case 0 :
+                        case 1 : status = None; break;
+                        default:{
+                            LOG_ERROR(ConnectionChan,"AfterWriteCallback failed");
+                            status = Error;
+                        }
+                    }
+                    break;
+                }
+                case Error :
+                    Close();
+                case None : {
+                    return;
+                }
+            }
+        }
+    }
+
+    int Connection::Close() {
+        status = None;
+        return TCPSocket::Close();
+    }
+
+    void Connection::SetWorkSock(SocketID _sock) {
+        workSock = _sock;
+    }
+
+    /* Protected Impl */
     int Connection::ReadCallback() {
         if(TCPSocket::RecvAll(data)){
             return 1;
@@ -87,78 +163,6 @@ namespace totoro {
     int Connection::AfterWriteCallback() {
         RegisterNextEvent(sock,Read,true);
         return 1;
-    }
-
-    void Connection::Run() {
-        while(status != None){
-            int ret;
-            switch (status) {
-                case Read : {
-                    ret = ReadCallback();
-                    if(ret == 1){
-                        status = AfterRead;
-                    }else if(ret == 0){
-                        status = None;
-                    }else{
-                        LOG_ERROR("Connection","ReadCallback failed");
-                        status = Error;
-                    }
-                    break;
-                }
-                case Write : {
-                    ret = WriteCallback();
-                    if(ret == 1){
-                        status = AfterWrite;
-                    }else if(ret == 0){
-                        status = None;
-                    }else{
-                        LOG_ERROR("Connection","WriteCallback failed");
-                        status = Error;
-                    }
-                    break;
-                }
-                case AfterRead : {
-                    ret = AfterReadCallback();
-                    if(ret == 1){
-                        status = Write;
-                    }else if(ret == 0){
-                        status = None;
-                    }else{
-                        LOG_ERROR("Connection","AfterReadCallback failed");
-                        status = Error;
-                    }
-                    break;
-                }
-                case AfterWrite : {
-                    ret = AfterWriteCallback();
-                    if(ret >= 0){
-                        status = None;
-                    }else{
-                        LOG_ERROR("Connection","AfterWriteCallback failed");
-                        status = Error;
-                    }
-                    break;
-                }
-                case Error :
-                    Close();
-                case None : {
-                    return;
-                }
-            }
-        }
-    }
-
-    int Connection::Close() {
-        status = None;
-        return TCPSocket::Close();
-    }
-
-    Connection::~Connection() {
-        Connection::Close();
-    }
-
-    void Connection::SetWorkSock(SocketID _sock) {
-        workSock = _sock;
     }
 }
 

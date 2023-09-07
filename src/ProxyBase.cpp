@@ -1,7 +1,8 @@
 #include <iostream>
 #include "ProxyBase.h"
-
+static const std::string ProxyBaseChan = "ProxyBase";
 namespace totoro {
+    /* Public Impl */
     int ProxyBase::MainReadCallback() {
         return Connection::ReadCallback();
     }
@@ -35,7 +36,7 @@ namespace totoro {
     int ProxyBase::ForwardAfterWriteCallback() {
         return 1;
     }
-
+    /* Private Impl */
     int ProxyBase::ReadCallback() {
         if(workSock == forwardSocket.Sock()){
             return ForwardReadCallback();
@@ -63,7 +64,7 @@ namespace totoro {
         }
         return MainAfterWriteCallback();
     }
-
+    /* Connection Public Impl */
     int ProxyBase::Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,
                       bool edgeTriggle,bool oneShot) {
         Connection::Init(sock, myAddr, destAddr, epollId, edgeTriggle, oneShot);
@@ -75,7 +76,7 @@ namespace totoro {
 
             forwardSocket.Init();
             if(!forwardSocket.Connect(ip,port)){
-                LOG_ERROR("Proxy","can't connect destination address");
+                LOG_ERROR(ProxyBaseChan,"can't connect destination address");
                 return -2;
             }
         }

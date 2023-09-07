@@ -7,6 +7,11 @@ https://github.com/OoShawnoO/conv_event
 - Signal Driven IO + User Model Async IO
 
 ### Third Party: 
-> nlohmann/json => include/Json.hpp
+> nlohmann/json
+> - github:https://github.com/nlohmann/json
+> - include/Json.hpp
 
-### 
+> fmtlib/fmt 
+> - github:https://github.com/fmtlib/fmt
+> - include:include/fmt/*  
+> - lib:libfmt.a

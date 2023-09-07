@@ -9,12 +9,11 @@ namespace totoro {
      */
     class ProxyBase : public Connection {
         TCPSocket forwardSocket;
-    protected:
         int ReadCallback() override;
         int AfterReadCallback() override;
         int WriteCallback() override;
         int AfterWriteCallback() override;
-
+    protected:
         virtual int MainReadCallback();
         virtual int MainAfterReadCallback();
         virtual int MainWriteCallback();

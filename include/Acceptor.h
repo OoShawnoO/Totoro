@@ -5,6 +5,7 @@
 #include <climits>
 #include "Epoller.h"
 
+static const std::string AcceptorChan = "Acceptor";
 namespace totoro {
     /**
      * @brief 负责监听新连接并分发给epoller \n response for accept new connection and dispatch new connection to epoller
@@ -59,7 +60,7 @@ namespace totoro {
             TCPSocket tcpSocket;
             while(!isStop){
                 if(!listenSocket.Accept(tcpSocket)){
-                    LOG_ERROR("Acceptor",strerror(errno));
+                    LOG_ERROR(AcceptorChan,strerror(errno));
                     exit(-1);
                 }
                 Minest().AddConnection(tcpSocket);
