@@ -31,6 +31,7 @@ namespace totoro {
         EpollID epollId                 {BAD_FILE_DESCRIPTOR};
         std::string data                {};
         Status status                   {None};
+        Status lastStatus               {None};
         bool edgeTriggle                {false};
         bool oneShot                    {true};
         virtual int ReadCallback();

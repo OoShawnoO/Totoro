@@ -3437,7 +3437,7 @@ namespace detail
 //
 // Every trait in this file expects a non CV-qualified type.
 // The only exceptions are in the 'aliases for detected' section
-// (i.e. those of the form: decltype(T::member_function(std::declval<T>())))
+// (i.e. those of the files: decltype(T::member_function(std::declval<T>())))
 //
 // In this case, T has to be properly CV-qualified to constraint the function arguments
 // (e.g. to_json(BasicJsonType&, const T&))
@@ -7599,7 +7599,7 @@ class lexer : public lexer_base<BasicJsonType>
                         case 'b':
                             add('\b');
                             break;
-                        // form feed
+                        // files feed
                         case 'f':
                             add('\f');
                             break;
@@ -17055,7 +17055,7 @@ boundaries compute_boundaries(FloatType value)
 //
 //      2^(q - 2 + alpha) <= c * w < 2^(q + gamma)
 //
-// The choice of (alpha,gamma) determines the size of the table and the form of
+// The choice of (alpha,gamma) determines the size of the table and the files of
 // the digit generation procedure. Using (alpha,gamma)=(-60,-32) works out well
 // in practice:
 //
@@ -17066,7 +17066,7 @@ boundaries compute_boundaries(FloatType value)
 //              = (f div 2^-e) + (f mod 2^-e) * 2^e
 //              = p1 + p2 * 2^e
 //
-// The conversion of p1 into decimal form requires a series of divisions and
+// The conversion of p1 into decimal files requires a series of divisions and
 // modulos by (a power of) 10. These operations are faster for 32-bit than for
 // 64-bit integers, so p1 should ideally fit into a 32-bit integer. This can be
 // achieved by choosing
@@ -17077,7 +17077,7 @@ boundaries compute_boundaries(FloatType value)
 //
 //      p2 * 2^e = p2 / 2^-e = d[-1] / 10^1 + d[-2] / 10^2 + ...
 //
-// into decimal form, the fraction is repeatedly multiplied by 10 and the digits
+// into decimal files, the fraction is repeatedly multiplied by 10 and the digits
 // d[-i] are extracted in order:
 //
 //      (10 * p2) div 2^-e = d[-1]
@@ -20743,10 +20743,10 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     This overloads is chosen if:
     - @a ValueType is not @ref basic_json,
-    - @ref json_serializer<ValueType> has a `from_json()` method of the form
+    - @ref json_serializer<ValueType> has a `from_json()` method of the files
       `void from_json(const basic_json&, ValueType&)`, and
     - @ref json_serializer<ValueType> does not have a `from_json()` method of
-      the form `ValueType from_json(const basic_json&)`
+      the files `ValueType from_json(const basic_json&)`
 
     @tparam ValueType the returned value type
 
@@ -20792,7 +20792,7 @@ class basic_json // NOLINT(cppcoreguidelines-special-member-functions,hicpp-spec
 
     This overloads is chosen if:
     - @a ValueType is not @ref basic_json and
-    - @ref json_serializer<ValueType> has a `from_json()` method of the form
+    - @ref json_serializer<ValueType> has a `from_json()` method of the files
       `ValueType from_json(const basic_json&)`
 
     @note If @ref json_serializer<ValueType> has both overloads of

@@ -6,9 +6,190 @@
 #include "fmt/format.h"
 static const std::string HttpBaseChan = "HttpBase";
 namespace totoro {
+    /* region Http Method Map */
+    const std::unordered_map<HttpMethod,std::string> HttpMethodMap{
+            {GET,"GET"},{POST,"POST"},{PUT,"PUT"},{PATCH,"PATCH"},{DELETE,"DELETE"},
+            {HEAD,"HEAD"},{TRACE,"TRACE"},{OPTIONS,"OPTIONS"},{CONNECT,"CONNECT"}
+    };
+    const std::unordered_map<std::string,HttpMethod> ReverseHttpMethodMap{
+            {"GET",GET},{"POST",POST},{"PUT",PUT},{"PATCH",PATCH},{"DELETE",DELETE},
+            {"TRACE",TRACE},{"HEAD",HEAD},{"OPTIONS",OPTIONS},{"CONNECT",CONNECT},
+    };
+    /* endregion */
+    /* region Http Status Map */
+    const std::unordered_map<HttpStatus, std::string> HttpStatusMap{
+            {HttpStatus::Continue,                        "Continue"},
+            {HttpStatus::Switching_Protocols,             "Switching Protocols"},
+            {HttpStatus::Processing,                      "Processing"},
+            {HttpStatus::OK,                              "OK"},
+            {HttpStatus::Created,                         "Created"},
+            {HttpStatus::Accepted,                        "Accepted"},
+            {HttpStatus::Non_Authoritative_information,   "Non-Authoritative Information"},
+            {HttpStatus::No_Content,                      "No Content"},
+            {HttpStatus::Reset_Content,                   "Reset Content"},
+            {HttpStatus::Partial_Content,                 "Partial Content"},
+            {HttpStatus::Multi_Status,                    "Multi-Status"},
+            {HttpStatus::Multiple_Choice,                 "Multiple Choices"},
+            {HttpStatus::Moved_Permanently,               "Moved Permanently"},
+            {HttpStatus::Move_Temporarily,                "Moved Temporarily"},
+            {HttpStatus::See_Other,                       "See Other"},
+            {HttpStatus::Not_Modified,                    "Not Modified"},
+            {HttpStatus::Use_Proxy,                       "Use Proxy"},
+            {HttpStatus::Switch_Proxy,                    "Switch Proxy"},
+            {HttpStatus::Temporary_Redirect,              "Temporary Redirect"},
+            {HttpStatus::Bad_Request,                     "Bad Request"},
+            {HttpStatus::Unauthorized,                    "Unauthorized"},
+            {HttpStatus::Payment_Required,                "Payment Required"},
+            {HttpStatus::Forbidden,                       "Forbidden"},
+            {HttpStatus::Not_Found,                       "Not Found"},
+            {HttpStatus::Method_Not_Allowed,              "Method Not Allowed"},
+            {HttpStatus::Not_Acceptable,                  "Not Acceptable"},
+            {HttpStatus::Proxy_Authentication_Required,   "Proxy Authentication Required"},
+            {HttpStatus::Request_Timeout,                 "Request Timeout"},
+            {HttpStatus::Conflict,                        "Conflict"},
+            {HttpStatus::Gone,                            "Gone"},
+            {HttpStatus::Length_Required,                 "Length Required"},
+            {HttpStatus::Precondition_Failed,             "Precondition Failed"},
+            {HttpStatus::Request_Entity_Too_Large,        "Request Entity Too Large"},
+            {HttpStatus::Request_URI_Too_Long,            "Request-URI Too Long"},
+            {HttpStatus::Unsupported_Media_Type,          "Unsupported Media Type"},
+            {HttpStatus::Requested_Range_Not_Satisfiable, "Requested Range Not Satisfiable"},
+            {HttpStatus::Expectation_Failed,              "Expectation Failed"},
+            {HttpStatus::I_Am_A_Teapot,                   "I'm a teapot"},
+            {HttpStatus::Misdirected_Request,             "Misdirected Request"},
+            {HttpStatus::Unprocessable_Entity,            "Unprocessable Entity"},
+            {HttpStatus::Locked,                          "Locked"},
+            {HttpStatus::Failed_Dependency,               "Failed Dependency"},
+            {HttpStatus::Too_Early,                       "Too Early"},
+            {HttpStatus::Upgrade_Required,                "Upgrade Required"},
+            {HttpStatus::Retry_With,                      "Retry With"},
+            {HttpStatus::Unavailable_For_Legal_Reasons,   "Unavailable For Legal Reasons"}
+    };
+    /* endregion */
+    /* region Http Version Map */
+    std::unordered_map<HttpVersion,std::string> HttpVersionMap{
+            {HTTP11,"HTTP/1.1"},{HTTP10,"HTTP/1.0"},{HTTP20,"HTTP/2.0"},{HTTP30,"HTTP/3.0"}
+    };
+    std::unordered_map<std::string,HttpVersion> ReverseHttpVersionMap{
+            {"HTTP/1.1",HTTP11},{"HTTP/1.0",HTTP10},{"HTTP/2.0",HTTP20},{"HTTP/3.0",HTTP30}
+    };
+    /* endregion */
+    /* region Http Content Type Map */
+    std::unordered_map<std::string,std::string> HttpContentTypeMap
+            {
+                    {"html", "text/html"},
+                    {"htm", "text/html"},
+                    {"shtml", "text/html"},
+                    {"css", "text/css"},
+                    {"xml", "text/xml"},
+                    {"gif", "image/gif"},
+                    {"jpeg", "image/jpeg"},
+                    {"jpg", "image/jpeg"},
+                    {"js", "application/javascript"},
+                    {"atom", "application/atom+xml"},
+                    {"rss", "application/rss+xml"},
+                    {"mml", "text/mathml"},
+                    {"txt", "text/plain"},
+                    {"jad", "text/vnd.sun.j2me.app-descriptor"},
+                    {"wml", "text/vnd.wap.wml"},
+                    {"htc", "text/x-component"},
+                    {"png", "image/png"},
+                    {"tif", "image/tiff"},
+                    {"tiff", "image/tiff"},
+                    {"wbmp", "image/vnd.wap.wbmp"},
+                    {"ico", "image/x-icon"},
+                    {"jng", "image/x-jng"},
+                    {"bmp", "image/x-ms-bmp"},
+                    {"svg", "image/svg+xml"},
+                    {"svgz", "image/svg+xml"},
+                    {"webp", "image/webp"},
+                    {"woff", "application/font-woff"},
+                    {"woff2","application/font-woff"},
+                    {"jar", "application/java-archive"},
+                    {"war", "application/java-archive"},
+                    {"ear", "application/java-archive"},
+                    {"json", "application/json"},
+                    {"hqx", "application/mac-binhex40"},
+                    {"doc", "application/msword"},
+                    {"pdf", "application/pdf"},
+                    {"ps", "application/postscript"},
+                    {"eps", "application/postscript"},
+                    {"ai", "application/postscript"},
+                    {"rtf", "application/rtf"},
+                    {"m3u8", "application/vnd.apple.mpegurl"},
+                    {"kml", "application/vnd.google-earth.kml+xml"},
+                    {"kmz", "application/vnd.google-earth.kmz"},
+                    {"xls", "application/vnd.ms-excel"},
+                    {"eot", "application/vnd.ms-fontobject"},
+                    {"ppt", "application/vnd.ms-powerpoint"},
+                    {"odg", "application/vnd.oasis.opendocument.graphics"},
+                    {"odp", "application/vnd.oasis.opendocument.presentation"},
+                    {"ods", "application/vnd.oasis.opendocument.spreadsheet"},
+                    {"odt", "application/vnd.oasis.opendocument.text"},
+                    {"pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+                    {"xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+                    {"docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+                    {"wmlc", "application/vnd.wap.wmlc"},
+                    {"7z", "application/x-7z-compressed"},
+                    {"cco", "application/x-cocoa"},
+                    {"jardiff", "application/x-java-archive-diff"},
+                    {"jnlp", "application/x-java-jnlp-file"},
+                    {"run", "application/x-makeself"},
+                    {"pl", "application/x-perl"},
+                    {"pm", "application/x-perl"},
+                    {"prc", "application/x-pilot"},
+                    {"pdb", "application/x-pilot"},
+                    {"rar", "application/x-rar-compressed"},
+                    {"rpm", "application/x-redhat-package-manager"},
+                    {"sea", "application/x-sea"},
+                    {"sit", "application/x-stuffit"},
+                    {"tcl", "application/x-tcl"},
+                    {"tk", "application/x-tcl"},
+                    {"der", "application/x-x509-ca-cert"},
+                    {"pem", "application/x-x509-ca-cert"},
+                    {"crt", "application/x-x509-ca-cert"},
+                    {"xpi", "application/x-xpinstall"},
+                    {"xhtml", "application/xhtml+xml"},
+                    {"xspf", "application/xspf+xml"},
+                    {"zip", "application/zip"},
+                    {"bin", "application/octet-stream"},
+                    {"exe", "application/octet-stream"},
+                    {"dll", "application/octet-stream"},
+                    {"deb", "application/octet-stream"},
+                    {"dmg", "application/octet-stream"},
+                    {"iso", "application/octet-stream"},
+                    {"img", "application/octet-stream"},
+                    {"msi", "application/octet-stream"},
+                    {"msp", "application/octet-stream"},
+                    {"msm", "application/octet-stream"},
+                    {"mid", "audio/midi"},
+                    {"midi", "audio/midi"},
+                    {"kar", "audio/midi"},
+                    {"mp3", "audio/mpeg"},
+                    {"ogg", "audio/ogg"},
+                    {"m4a", "audio/x-m4a"},
+                    {"ra", "audio/x-realaudio"},
+                    {"3gpp", "video/3gpp"},
+                    {"3gp", "video/3gpp"},
+                    {"ts", "video/mp2t"},
+                    {"mp4", "video/mp4"},
+                    {"mpeg", "video/mpeg"},
+                    {"mpg", "video/mpeg"},
+                    {"mov", "video/quicktime"},
+                    {"webm", "video/webm"},
+                    {"flv", "video/x-flv"},
+                    {"m4v", "video/x-m4v"},
+                    {"mng", "video/x-mng"},
+                    {"asx", "video/x-ms-asf"},
+                    {"asf", "video/x-ms-asf"},
+                    {"wmv", "video/x-ms-wmv"},
+                    {"avi", "video/x-msvideo"},
+            };
+    /* endregion */
+
     static const std::regex RequestLineRegex("^(.*) (.*) (.*)$");
     static const std::regex RequestParameterRegex("([^&]+)=([^&]*)&?");
-    static const std::regex RequestFieldRegex("^(.*?):\\s?(.*?);?$");
+    static const std::regex RequestFieldRegex("^(.*):\\s?(.*);?$");
 
     static auto getLine = [](std::stringstream& _stream,std::string& _line) -> std::basic_istream<char>&{
         auto& ret = std::getline(_stream,_line,'\r');
@@ -18,11 +199,28 @@ namespace totoro {
 
     /* Connection Protected Impl */
     int HttpBase::ReadCallback() {
-        return Connection::ReadCallback();
+        if(!TCPSocket::RecvAll(data)) return -1;
+        if(!requestHeader.Parse(data)) return -1;
+        return 1;
     }
 
     int HttpBase::AfterReadCallback() {
-        return Connection::AfterReadCallback();
+        if(requestHeader.GetMethod() != POST
+        && requestHeader.GetMethod() != PATCH
+        && requestHeader.GetMethod() != PUT){
+            return 1;
+        }
+        if(requestHeader.GetContentLength() > data.size()){
+            std::string temp;
+            if(TCPSocket::Recv(temp,requestHeader.GetContentLength() - data.size()) < 0){
+                return -1;
+            }else if(temp.size() != requestHeader.GetContentLength() - data.size()){
+                return 0;
+            }
+            data += temp;
+        }
+        if(!requestBody.Parse(data,requestHeader)) return -1;
+        return 1;
     }
 
     int HttpBase::WriteCallback() {
@@ -50,7 +248,7 @@ namespace totoro {
         }
     }
 
-    bool HttpBase::RequestHeader::Parse(const std::string &requestHeaderData) {
+    bool HttpBase::RequestHeader::Parse(std::string &requestHeaderData) {
         if(requestHeaderData.empty()) {
             LOG_ERROR(HttpBaseChan,"request header empty");
             return false;
@@ -85,15 +283,15 @@ namespace totoro {
 
         while(getLine(stream,line)){
             if(line.empty()) break;
-            if(!std::regex_match(line.c_str(),matches,RequestFieldRegex)){
-                LOG_ERROR(HttpBaseChan,"field match failed");
+            auto splitPos = line.find(':');
+            if(splitPos == std::string::npos){
+                LOG_ERROR(HttpBaseChan,"field has no :");
                 return false;
             }
-            std::stringstream fieldStream(matches[2]);
-            auto& field = fields[matches[1]];
-            while(std::getline(fieldStream,line,';')) {
+            std::stringstream fieldStream(line.substr(splitPos + 1));
+            auto& field = fields[line.substr(0,splitPos)];
+            while(std::getline(fieldStream,line,',')) {
                 line.erase(line.begin(),std::find_if_not(line.begin(),line.end(),::isspace));
-                line.erase((std::find_if_not(line.rbegin(),line.rend(),::isspace).base(),line.end()));
                 field.emplace_back(std::move(line));
             }
         }
@@ -103,9 +301,21 @@ namespace totoro {
             cookies[cookie.substr(0,pos-1)] = cookie.substr(pos+1);
         }
 
-        if(method == POST || method == PATCH || method == PUT){
-            auto& CT = fields["Content-Type"];
-            auto it = std::find_if(CT.begin(), CT.end(),[](const std::string& field){
+        if(method != POST&&method != PATCH&&method != PUT) return true;
+        getline(stream,requestHeaderData,'\0');
+
+        auto& CT = fields["Content-Type"];
+        if(CT.empty()) {
+            LOG_ERROR(HttpBaseChan,"not found content type");
+            return -1;
+        }
+        auto splitPos = CT[0].find(';');
+        if(splitPos != std::string::npos){
+            CT.emplace_back(CT[0].substr(splitPos + 1));
+            CT[0] = CT[0].substr(0,splitPos);
+        }
+        if(CT[0] == "multipart/files-data" && method == POST || method == PATCH || method == PUT){
+            auto it = std::find_if(CT.begin() + 1, CT.end(),[](const std::string& field){
                 return field.find("boundary") != std::string::npos;
             });
             if(it == CT.end()) return false;
@@ -134,49 +344,139 @@ namespace totoro {
 
     const HttpParameterType &HttpBase::RequestHeader::GetParameters() const { return parameters; }
 
+    const std::string &HttpBase::RequestHeader::GetBoundary() const { return boundary; }
+
+    const HttpMethod &HttpBase::RequestHeader::GetMethod() const { return method; }
+
     /* RequestBody Impl */
     void HttpBase::RequestBody::Clear() {
-        form.clear();
+        files.clear();
     }
 
-    bool HttpBase::RequestBody::Parse(const std::string &requestBodyData,const std::string& boundary) {
-        if(requestBodyData.empty() || boundary.empty()) {
-            LOG_ERROR(HttpBaseChan,"request body empty or boundary not found");
+    bool HttpBase::RequestBody::Parse(const std::string &requestBodyData,const RequestHeader& header) {
+        if(requestBodyData.empty()) {
+            LOG_ERROR(HttpBaseChan,"request body empty");
             return false;
         }
-        const std::string another = "--" + boundary;
-        const std::string end = "--" + boundary + "--";
         std::stringstream stream(requestBodyData);
         std::string line;
-
-        std::string name;
-        std::string contentType;
         std::string fileName;
         std::string data;
-        while(getLine(stream,line)){
-            if(line == end) {
-                form[name] = {std::move(contentType),std::move(fileName),std::move(data)};
-                break;
-            }
-            if(line == another){
-                if(!name.empty())
-                    form[name] = {std::move(contentType),std::move(fileName),std::move(data)};
+        std::string name;
+
+        const std::string& type = header.GetContentType();
+        if(type == "multipart/files-data"){
+            const std::string& boundary = header.GetBoundary();
+            const std::string another = "--" + boundary;
+            const std::string end = "--" + boundary + "--";
+            char* bound = new char[boundary.size() + 2];
+            std::string contentType;
+            while(getLine(stream,line)){
+                if(line == end) {
+                    files[name] = {std::move(contentType), std::move(fileName), std::move(data)};
+                    break;
+                }
+                if(line == another){
+                    if(!name.empty())
+                        files[name] = {std::move(contentType), std::move(fileName), std::move(data)};
+                    continue;
+                }
+                if(line.empty()){
+                    auto pos = static_cast<size_t>(stream.tellg());
+                    auto endPos = requestBodyData.find(another,pos);
+                    data = requestBodyData.substr(pos,endPos - pos);
+                    stream.seekg(static_cast<std::streampos>(endPos));
+                    data.pop_back();
+                    data.pop_back();
+                    continue;
+                }
+                if(line.substr(0,12) == "Content-Type"){
+                    contentType = line.substr(line.find(':')+1);
+                    contentType.erase(contentType.begin(),std::find_if_not(contentType.begin(),contentType.end(),::isspace));
+                    contentType.erase((std::find_if_not(contentType.rbegin(),contentType.rend(),::isspace).base(),contentType.end()));
+                    continue;
+                }
+                if(line.substr(0,19) == "Content-Disposition"){
+                    auto namePos = line.find("name=");
+                    auto filePos = line.find("filename=");
+                    if(namePos == std::string::npos){
+                        LOG_ERROR(HttpBaseChan,"request body multipart-files has no name field");
+                        return false;
+                    }
+                    auto splitPos = line.find(';',namePos + 6);
+                    name = line.substr(namePos + 6,line.find(';',namePos + 6) - namePos - 7);
+                    if(splitPos == std::string::npos) name.pop_back();
+                    if(filePos == std::string::npos) continue;
+                    splitPos = line.find(';',filePos + 10);
+                    fileName = line.substr(filePos + 10,splitPos - filePos - 11);
+                    if(splitPos == std::string::npos) fileName.pop_back();
+                }
             }
         }
-
-        return false;
+        else if(type == "application/x-www-form-urlencoded"){
+            while(getline(stream,line,'&')){
+                auto equalPos = line.find('=');
+                if(equalPos == std::string::npos){
+                    LOG_ERROR(HttpBaseChan,"char '=' not found");
+                    return false;
+                }
+                name = line.substr(0,equalPos);
+                data = line.substr(equalPos + 1);
+                form[name] = std::move(data);
+            }
+        }
+        else if(type == "application/json"){
+            json = Json::parse(requestBodyData);
+            if(json.empty()) return false;
+        }
+        else{
+            return false;
+        }
+        return true;
     }
 
-    const HttpMultiPartType &HttpBase::RequestBody::GetForm() const { return form; }
+    const HttpMultiPartType &HttpBase::RequestBody::GetFiles() const { return files; }
 
-    bool HttpBase::RequestBody::DownloadFile(const std::string &fieldName, const std::string &destFilePath) const {
-        auto file = form.find(fieldName);
-        if(file == form.end()) return false;
-
-        std::ofstream out(destFilePath + file->second[2],std::ios::out);
+    bool HttpBase::RequestBody::DownloadFilesField(const std::string &fieldName,
+                                             const std::string &destFilePath,
+                                             std::string fileName ) const {
+        auto file = files.find(fieldName);
+        if(file == files.end()) return false;
+        if(file->second.fileName.empty()) return false;
+        if(fileName.empty()) fileName = file->second.fileName;
+        std::ofstream out(destFilePath + "/" + fileName,std::ios::out);
         if(!out.is_open()) return false;
-        out.write(file->second[3].c_str(),(std::streamsize)file->second[3].size());
+        out.write(file->second.data.c_str(),(std::streamsize)file->second.data.size());
+        out.close();
         return true;
+    }
+
+    std::string HttpBase::RequestBody::GetFilesFieldData(const std::string &name) {
+        auto field = files.find(name);
+        if(field == files.end()) return {};
+        return field->second.data;
+    }
+
+    std::string HttpBase::RequestBody::GetFilesFieldFileName(const std::string &name) {
+        auto field = files.find(name);
+        if(field == files.end()) return {};
+        return field->second.fileName;
+    }
+
+    std::string HttpBase::RequestBody::GetFilesFieldContentType(const std::string &name) {
+        auto field = files.find(name);
+        if(field == files.end()) return {};
+        return field->second.contentType;
+    }
+
+    const Json &HttpBase::RequestBody::GetJson() const { return json; }
+
+    const HttpFormType &HttpBase::RequestBody::GetForm() const { return form; }
+
+    std::string HttpBase::RequestBody::GetFormField(const std::string &name) {
+        auto it = form.find(name);
+        if(it == form.end()) return {};
+        return it->second;
     }
 
     /* ResponseHeader Impl */

@@ -66,6 +66,10 @@ namespace totoro {
     }
 
     void Connection::Run() {
+        if(lastStatus != None) {
+            status = lastStatus;
+            lastStatus = None;
+        }
         while(status != None){
             int ret;
             switch (status) {
@@ -73,21 +77,9 @@ namespace totoro {
                     ret = ReadCallback();
                     switch(ret){
                         case 1 : status = AfterRead; break;
-                        case 0 : status = None; break;
+                        case 0 : lastStatus = Read;status = None; break;
                         default: {
                             LOG_ERROR(ConnectionChan,"ReadCallback failed");
-                            status = Error;
-                        }
-                    }
-                    break;
-                }
-                case Write : {
-                    ret = WriteCallback();
-                    switch(ret){
-                        case 1 : status = AfterWrite; break;
-                        case 0 : status = None; break;
-                        default: {
-                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
                         }
                     }
@@ -97,9 +89,21 @@ namespace totoro {
                     ret = AfterReadCallback();
                     switch(ret){
                         case 1 : status = Write; break;
-                        case 0 : status = None; break;
+                        case 0 : lastStatus = AfterRead;status = None; break;
                         default: {
                             LOG_ERROR(ConnectionChan,"AfterReadCallback failed");
+                            status = Error;
+                        }
+                    }
+                    break;
+                }
+                case Write : {
+                    ret = WriteCallback();
+                    switch(ret){
+                        case 1 : status = AfterWrite; break;
+                        case 0 : lastStatus = Write;status = None; break;
+                        default: {
+                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
                         }
                     }
@@ -108,7 +112,7 @@ namespace totoro {
                 case AfterWrite : {
                     ret = AfterWriteCallback();
                     switch(ret) {
-                        case 0 :
+                        case 0 : lastStatus = AfterWrite;
                         case 1 : status = None; break;
                         default:{
                             LOG_ERROR(ConnectionChan,"AfterWriteCallback failed");

@@ -3,10 +3,10 @@
 namespace totoro {
     Configure::Configure(const std::string &filePath) {
         std::ifstream in(filePath);
-        conf = json::parse(in);
+        conf = Json::parse(in);
     }
 
-    json &totoro::Configure::Get() {
+    Json &totoro::Configure::Get() {
         static Configure config("etc/config.json");
         return config.conf;
     }
