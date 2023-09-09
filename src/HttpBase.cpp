@@ -186,7 +186,38 @@ namespace totoro {
                     {"avi", "video/x-msvideo"},
             };
     /* endregion */
-
+    /* region Http Error Template Html */
+    const std::string HttpErrorTemplateHtml = "<!DOCTYPE html>\n"
+                                              "<html lang=\"en\">\n"
+                                              "<head>\n"
+                                              "    <meta charset=\"UTF-8\">\n"
+                                              "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                                              "    <title>Totoro Server Notice</title>\n"
+                                              "    <style>\n"
+                                              "        body {\n"
+                                              "            font-family: Arial, sans-serif;\n"
+                                              "            background-color: #f0f0f0;\n"
+                                              "            margin: 0;\n"
+                                              "            padding: 0;\n"
+                                              "            text-align: center;\n"
+                                              "        }\n"
+                                              "        .error-container {\n"
+                                              "            background-color: #fff;\n"
+                                              "            border-radius: 5px;\n"
+                                              "            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);\n"
+                                              "            margin: 100px auto;\n"
+                                              "            max-width: 400px;\n"
+                                              "            padding: 20px;\n"
+                                              "        }\n"
+                                              "        h1 {\n"
+                                              "            color: #e74c3c;\n"
+                                              "        }\n"
+                                              "        p {\n"
+                                              "            color: #333;\n"
+                                              "        }\n"
+                                              "    </style>\n"
+                                              "</head>\n";
+    /* endregion */
     static const std::regex RequestLineRegex("^(.*) (.*) (.*)$");
     static const std::regex RequestParameterRegex("([^&]+)=([^&]*)&?");
     static const std::regex RequestFieldRegex("^(.*):\\s?(.*);?$");
@@ -224,11 +255,101 @@ namespace totoro {
     }
 
     int HttpBase::WriteCallback() {
-        return Connection::WriteCallback();
+        bool ret;
+        switch(requestHeader.GetMethod()){
+            case GET: {
+                ret = GetHandler();
+                break;
+            }
+            case POST: {
+                ret = PostHandler();
+                break;
+            }
+            case PUT: {
+                ret = PutHandler();
+                break;
+            }
+            case PATCH: {
+                ret = PatchHandler();
+                break;
+            }
+            case DELETE: {
+                ret = DeleteHandler();
+                break;
+            }
+            case TRACE: {
+                ret = TraceHandler();
+                break;
+            }
+            case HEAD: {
+                ret = HeadHandler();
+                break;
+            }
+            case OPTIONS: {
+                ret = OptionsHandler();
+                break;
+            }
+            case CONNECT: {
+                ret = ConnectHandler();
+                break;
+            }
+        }
+        return ret ? 1 : -1;
     }
 
     int HttpBase::AfterWriteCallback() {
-        return Connection::AfterWriteCallback();
+        return SendResponseHeader() && SendResponseBody() ? 1 : -1;
+    }
+
+    bool HttpBase::SendResponseHeader() {
+        std::string headerText = responseHeader.toString();
+        int ret = TCPSocket::SendAll(headerText);
+        if(ret == -1) return false;
+        else if(ret == 0){
+            while((ret =TCPSocket::SendAll(headerText)) == 0){}
+            if(ret == -1) return false;
+        }
+        return true;
+    }
+
+    bool HttpBase::SendResponseBody() {
+        if(!responseBody.GetResourcePath().empty()){
+            int ret = TCPSocket::SendFile(responseBody.GetResourcePath());
+            if(ret == -1) return false;
+            else if(ret == 0){
+                while((ret = TCPSocket::SendFile(responseBody.GetResourcePath())) == 0){}
+                if(ret == -1) return false;
+            }
+        }
+        else
+        {
+            int ret = TCPSocket::SendAll(responseBody.GetData());
+            if(ret == -1) return false;
+            else if(ret == 0){
+                while((ret =TCPSocket::SendAll(responseBody.GetData())) == 0){}
+                if(ret == -1) return false;
+            }
+        }
+        return true;
+    }
+
+    void HttpBase::RenderStatus(HttpStatus _status) {
+        responseHeader.SetStatus(_status);
+        responseHeader.SetVersion(requestHeader.GetVersion());
+        responseHeader.SetContentType("text/html");
+
+        data = HttpErrorTemplateHtml + fmt::format(
+                           "<body>\n"
+                           "<div class=\"error-container\">\n"
+                           "    <h1>{}</h1>\n"
+                           "    <p>{}</p>\n"
+                           "</div>\n"
+                           "</body>\n"
+                           "</html>",std::to_string((int32_t)_status) + " " + HttpStatusMap.find(_status)->second,
+                           HttpStatusMap.find(_status)->second);
+
+        responseHeader.SetContentLength(data.size());
+        responseBody.SetData(data);
     }
 
     /* RequestHeader Impl */
@@ -385,7 +506,7 @@ namespace totoro {
                     auto pos = static_cast<size_t>(stream.tellg());
                     auto endPos = requestBodyData.find(another,pos);
                     data = requestBodyData.substr(pos,endPos - pos);
-                    stream.seekg(static_cast<std::streampos>(endPos));
+                    stream.seekg(static_cast<std::streampos>((std::streamoff)endPos));
                     data.pop_back();
                     data.pop_back();
                     continue;
@@ -487,8 +608,12 @@ namespace totoro {
                                                    HttpStatusMap.at(status));
         for(auto& field : fields){
             std::string values;
-            for(auto& value : field.second){
-                values += fmt::format("{};",std::move(value));
+            if(field.second.size() == 1) values = fmt::format("{}",field.second[0]);
+            else if(field.second.empty()) values = "";
+            else{
+                for(auto& value : field.second){
+                    values += fmt::format("{},",std::move(value));
+                }
             }
             responseBodyText += fmt::format("{}:{}\r\n",field.first,std::move(values));
         }
@@ -535,46 +660,61 @@ namespace totoro {
         resourcePath = _resourcePath;
     }
 
-    void HttpBase::ResponseBody::SetData(std::string _data) { data = std::move(_data); }
+    void HttpBase::ResponseBody::SetData(std::string& _data) { data = std::move(_data); }
 
     void HttpBase::ResponseBody::Clear() {
         resourcePath.clear();
         data.clear();
     }
+
+    const std::string &HttpBase::ResponseBody::GetResourcePath() { return resourcePath; }
+
+    const std::string &HttpBase::ResponseBody::GetData() { return data; }
+
     /* HttpBase Protected Impl */
     bool HttpBase::GetHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::PostHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::PutHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::PatchHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::DeleteHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::TraceHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::HeadHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::OptionsHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
 
     bool HttpBase::ConnectHandler() {
-        return false;
+        RenderStatus(HttpStatus::Method_Not_Allowed);
+        return true;
     }
+
 } // totoro

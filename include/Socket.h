@@ -21,7 +21,6 @@ namespace totoro {
         size_t readTotalBytes               {0};
         size_t writeTotalBytes              {0};
         int file                            {BAD_FILE_DESCRIPTOR};
-        struct stat stat                    {};
         int sock                            {BAD_FILE_DESCRIPTOR};
         sockaddr_in myAddr                  {};
         sockaddr_in destAddr                {};
@@ -29,24 +28,28 @@ namespace totoro {
 
         virtual int sendImpl(const char* data) = 0;
         virtual int recvImpl(std::string& data) = 0;
+
+        struct stat stat                    {};
     public:
         virtual ~Socket();
         virtual bool Init(const std::string& ip,short port) = 0;
         virtual void Init(int _sock,sockaddr_in _myAddr,sockaddr_in _destAddr);
         virtual inline bool Bind() = 0;
         virtual int SendWithHeader(const char* data,size_t size);
-        virtual int SendWithHeader(std::string& data);
+        virtual int SendWithHeader(const std::string& data);
         virtual int SendWithHeader(std::string&& data);
-        virtual int SendAll(std::string& data) = 0;
-        virtual int Send(std::string& data,size_t size) = 0;
+        virtual int SendAll(const std::string& data) = 0;
+        virtual int Send(const std::string& data,size_t size) = 0;
         virtual int Send(std::string&& data,size_t size) = 0;
         virtual int Send(const char* data,size_t size) = 0;
+        virtual int SendFileWithHeader(const std::string& filePath) = 0;
         virtual int SendFile(const std::string& filePath) = 0;
 
         virtual int RecvWithHeader(std::string& data);
         virtual int Recv(std::string& data,size_t size) = 0;
         virtual bool RecvAll(std::string& data) = 0;
-        virtual int RecvFile(const std::string& filePath) = 0;
+        virtual int RecvFileWithHeader(const std::string& filePath) = 0;
+        virtual int RecvFile(const std::string& filePath,size_t size) = 0;
 
         int Sock() const;
         sockaddr_in Addr() const;
@@ -74,18 +77,20 @@ namespace totoro {
         bool Accept(TCPSocket& tcpSocket);
         bool Connect(const std::string& ip,short port);
         int SendWithHeader(const char* data,size_t size) override;
-        int SendWithHeader(std::string& data) override;
+        int SendWithHeader(const std::string& data) override;
         int SendWithHeader(std::string&& data) override;
-        int SendAll(std::string& data) override;
-        int Send(std::string& data,size_t size) override;
+        int SendAll(const std::string& data) override;
+        int Send(const std::string& data,size_t size) override;
         int Send(std::string&& data,size_t size) override;
         int Send(const char* data,size_t size) override;
+        int SendFileWithHeader(const std::string& filePath) override;
         int SendFile(const std::string& filePath) override;
 
         int RecvWithHeader(std::string& data) override;
         int Recv(std::string& data,size_t size) override;
         bool RecvAll(std::string& data) override;
-        int RecvFile(const std::string& filePath) override;
+        int RecvFileWithHeader(const std::string& filePath) override;
+        int RecvFile(const std::string& filePath,size_t size) override;
 
         int Close() override;
     };
@@ -102,18 +107,20 @@ namespace totoro {
         void SetDestAddr(const std::string& ip,short port);
         bool Bind() override;
         int SendWithHeader(const char* data,size_t size) override;
-        int SendWithHeader(std::string& data) override;
+        int SendWithHeader(const std::string& data) override;
         int SendWithHeader(std::string&& data) override;
-        int SendAll(std::string& data) override;
-        int Send(std::string& data,size_t size) override;
+        int SendAll(const std::string& data) override;
+        int Send(const std::string& data,size_t size) override;
         int Send(std::string&& data,size_t size) override;
         int Send(const char* data,size_t size) override;
+        int SendFileWithHeader(const std::string& filePath) override;
         int SendFile(const std::string& filePath) override;
 
         int RecvWithHeader(std::string& data) override;
         int Recv(std::string& data,size_t size) override;
         bool RecvAll(std::string& data) override;
-        int RecvFile(const std::string& filePath) override;
+        int RecvFileWithHeader(const std::string& filePath) override;
+        int RecvFile(const std::string& filePath,size_t size) override;
 
         int Close() override;
     };

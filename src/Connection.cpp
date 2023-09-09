@@ -75,6 +75,7 @@ namespace totoro {
             switch (status) {
                 case Read : {
                     ret = ReadCallback();
+                    if(status == None) break;
                     switch(ret){
                         case 1 : status = AfterRead; break;
                         case 0 : lastStatus = Read;status = None; break;
@@ -87,6 +88,7 @@ namespace totoro {
                 }
                 case AfterRead : {
                     ret = AfterReadCallback();
+                    if(status == None) break;
                     switch(ret){
                         case 1 : status = Write; break;
                         case 0 : lastStatus = AfterRead;status = None; break;
@@ -99,6 +101,7 @@ namespace totoro {
                 }
                 case Write : {
                     ret = WriteCallback();
+                    if(status == None) break;
                     switch(ret){
                         case 1 : status = AfterWrite; break;
                         case 0 : lastStatus = Write;status = None; break;
@@ -111,6 +114,7 @@ namespace totoro {
                 }
                 case AfterWrite : {
                     ret = AfterWriteCallback();
+                    if(status == None) break;
                     switch(ret) {
                         case 0 : lastStatus = AfterWrite;
                         case 1 : status = None; break;
@@ -122,7 +126,7 @@ namespace totoro {
                     break;
                 }
                 case Error :
-                    Close();
+                    ShutDown();
                 case None : {
                     return;
                 }
@@ -166,6 +170,11 @@ namespace totoro {
 
     int Connection::AfterWriteCallback() {
         RegisterNextEvent(sock,Read,true);
+        return 1;
+    }
+
+    int Connection::ShutDown() {
+        shutdown(sock,SHUT_RD);
         return 1;
     }
 }

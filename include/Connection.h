@@ -26,6 +26,7 @@ namespace totoro {
         void RegisterNextEvent(SocketID sock,Status nextStatus,bool isMod);
         void SetWorkSock(SocketID sock);
         int Close() override;
+        int ShutDown();
     protected:
         SocketID workSock               {BAD_FILE_DESCRIPTOR};
         EpollID epollId                 {BAD_FILE_DESCRIPTOR};

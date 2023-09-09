@@ -80,12 +80,17 @@ namespace totoro {
     extern std::unordered_map<HttpVersion,std::string> HttpVersionMap;
     extern std::unordered_map<std::string,HttpVersion> ReverseHttpVersionMap;
     extern std::unordered_map<std::string,std::string> HttpContentTypeMap;
+    extern const std::string HttpErrorTemplateHtml;
 
     class HttpBase : public Connection {
+    protected:
         int ReadCallback() override;
         int AfterReadCallback() override;
         int WriteCallback() override;
         int AfterWriteCallback() override;
+        virtual void RenderStatus(HttpStatus status);
+        virtual bool SendResponseHeader();
+        virtual bool SendResponseBody();
     protected:
         // 请求头信息 / Request Header Information
         struct RequestHeader{
@@ -149,8 +154,6 @@ namespace totoro {
             HttpStatus status;
             // 响应头字段 / Response Header Fields
             HttpHeaderFieldsType fields;
-
-            std::string toString();
         public:
             void SetVersion(HttpVersion version);
             void SetStatus(HttpStatus status);
@@ -158,6 +161,7 @@ namespace totoro {
             void SetContentLength(size_t length);
             void SetCookie(const std::string& cookieKey,const std::string& cookieValue);
             void SetField(const std::string& fieldKey,const std::vector<std::string>& fieldValues);
+            std::string toString();
             void Clear();
         }responseHeader;
         // 响应体信息 / Response Body Information
@@ -169,7 +173,9 @@ namespace totoro {
             std::string data;
         public:
             void SetResourcePath(const std::string& resourcePath);
-            void SetData(std::string data);
+            const std::string& GetResourcePath();
+            void SetData(std::string& data);
+            const std::string& GetData();
             void Clear();
         }responseBody;
         // Get 方法处理 / Get Request Handler

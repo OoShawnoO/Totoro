@@ -35,7 +35,7 @@ namespace totoro {
         int EpollAdd(SocketID socketId,bool isListen = false) {
             epoll_event ev{};
             ev.data.fd = socketId;
-            ev.events = EPOLLIN | EPOLLRDHUP;
+            ev.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
             ev.events = (edgeTriggle ? ev.events | EPOLLET : ev.events);
             ev.events = (oneShot && !isListen ? ev.events | EPOLLONESHOT : ev.events);
             if(noneBlock) NoneBlock(socketId);
@@ -44,7 +44,7 @@ namespace totoro {
         int EpollMod(SocketID socketId, uint32_t ev) {
             epoll_event event{};
             event.data.fd = socketId;
-            event.events = ev | EPOLLRDHUP;
+            event.events = ev | EPOLLRDHUP | EPOLLHUP;
             event.events = edgeTriggle ? event.events | EPOLLET : event.events;
             event.events = oneShot ? event.events | EPOLLONESHOT : event.events;
             return epoll_ctl(id,EPOLL_CTL_MOD,socketId,&event);
@@ -120,8 +120,7 @@ namespace totoro {
                     connection->SetWorkSock(cur);
                     auto event = events[index].events;
                     if(event & EPOLLRDHUP){
-                        LOG_INFO(EpollerChan,std::to_string(cur));
-                        LOG_INFO(EpollerChan,"client close");
+                        LOG_INFO(EpollerChan,"connection close");
                         DelConnection(connection);
                     }else if(event & EPOLLERR){
                         LOG_ERROR(EpollerChan,"epoll error");
