@@ -21,6 +21,7 @@ namespace totoro {
         bool oneShot                                                    {true};
         bool noneBlock                                                  {true};
         bool& isStop                                                    ;
+        IPFilter* filter                                                {nullptr};
         Pool<T> connectionPool                                          {1024};
         ThreadPool<T> threadPool                                        {4,8196};
         std::atomic<int> currentConnectCount                            {0};
@@ -67,7 +68,7 @@ namespace totoro {
                     LOG_ERROR(EpollerChan,"not found candidate addr");
                     return false;
                 }
-                int ret = conn->Init(cur,iter->second.first,iter->second.second,id,edgeTriggle,oneShot);
+                int ret = conn->Init(cur,iter->second.first,iter->second.second,id,filter,edgeTriggle,oneShot);
                 if(ret == -2){
                     conn->Close();
                     connectionPool.release(conn);
@@ -113,6 +114,7 @@ namespace totoro {
                     LOG_ERROR(EpollerChan,"epoll wait failed");
                     exit(-1);
                 }
+
                 for(index = 0;index < ret;index++ ){
                     cur = events[index].data.fd;
                     if(!getMapIterator(cur,mapIterator)) continue;
@@ -139,9 +141,9 @@ namespace totoro {
             }
         }
     public:
-        explicit Epoller(bool& _isStop,bool _et = false,
-                bool _oneShot = true,bool _noneBlock = false):
-        isStop(_isStop),edgeTriggle(_et),
+        explicit Epoller(bool& _isStop,IPFilter* _filter = nullptr,
+                         bool _et = true,bool _oneShot = true,bool _noneBlock = false):
+        isStop(_isStop),filter(_filter),edgeTriggle(_et),
         oneShot(_oneShot),noneBlock(_noneBlock){
             if((id =epoll_create(1234)) < 0){
                 LOG_ERROR(EpollerChan,"create epoll failed");

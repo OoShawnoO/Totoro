@@ -4,6 +4,7 @@
 #include <cstring>
 #include <climits>
 #include "Epoller.h"
+#include "IPFilter.h"
 
 static const std::string AcceptorChan = "Acceptor";
 namespace totoro {
@@ -13,15 +14,16 @@ namespace totoro {
      */
     template<class T>
     class Acceptor {
-        std::deque<Epoller<T>> reactors;
-        TCPSocket listenSocket              {};
         bool& isStop                        ;
+        IPFilter filter                     {};
+        TCPSocket listenSocket              {};
+        std::deque<Epoller<T>> reactors     {};
 
         Epoller<T>& RoundRobin(){
             static int index = 0;
             return reactors[++index % reactors.size()];
         }
-        Epoller<T>& Minest(){
+        Epoller<T>& Minimum(){
             int minCount = INT_MAX;
             Epoller<T>* cur = nullptr;
             for(auto& reactor : reactors){
@@ -30,14 +32,17 @@ namespace totoro {
             return *cur;
         }
     public:
-        Acceptor(const std::string& ip,short port,int reactorCount,bool& _isStop,int timeOut = -1,bool _et = false,
-                 bool _oneShot = true,bool _noneBlock = false):isStop(_isStop){
+        Acceptor(const std::string& ip,short port,int reactorCount,bool& _isStop,
+                 const std::vector<in_addr_t>& _bannedIPs = {},
+                 const std::vector<in_addr_t>& _allowedIPs = {},
+                 int timeOut = -1,bool _et = false,bool _oneShot = true,bool _noneBlock = false)
+                 :isStop(_isStop){
             if(reactorCount <= 0) {
                 LOG_FATAL("Epoller","reactor count must > 0");
                 exit(-1);
             }
             for(int i=0;i<reactorCount;i++){
-                reactors.emplace_back(_isStop,_et,_oneShot,_noneBlock);
+                reactors.emplace_back(_isStop,&filter,_et,_oneShot,_noneBlock);
             }
             if(!listenSocket.Init(ip,port)){
                 LOG_ERROR("Epoller","init listen socket failed");
@@ -51,6 +56,10 @@ namespace totoro {
                 LOG_ERROR("Epoller","listen socket failed");
                 exit(-1);
             }
+
+            for(const auto& bannedIP : _bannedIPs) filter.AddBan(bannedIP);
+            for(const auto& allowedIP : _allowedIPs) filter.AddAllow(allowedIP);
+
             for(auto& reactor : reactors) {
                 std::thread(Epoller<T>::Poll,&reactor,timeOut).detach();
             }
@@ -63,7 +72,14 @@ namespace totoro {
                     LOG_ERROR(AcceptorChan,strerror(errno));
                     exit(-1);
                 }
-                Minest().AddConnection(tcpSocket);
+
+                if(filter.isBanned(tcpSocket.DestAddr().sin_addr.s_addr)
+                || !filter.isAllowed(tcpSocket.DestAddr().sin_addr.s_addr)){
+                    LOG_INFO(AcceptorChan,"connection not allowed.");
+                    tcpSocket.Close();
+                    continue;
+                }
+                Minimum().AddConnection(tcpSocket);
             }
         }
     };

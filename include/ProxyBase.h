@@ -24,7 +24,7 @@ namespace totoro {
         virtual int ForwardWriteCallback();
         virtual int ForwardAfterWriteCallback();
     public:
-        int Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,bool edgeTriggle = false,bool oneShot = true) override;
+        int Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,IPFilter* filter,bool edgeTriggle = false,bool oneShot = true) override;
         int Close() override;
     };
 

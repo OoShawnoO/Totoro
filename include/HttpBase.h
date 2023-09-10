@@ -113,7 +113,7 @@ namespace totoro {
         public:
             bool Parse(std::string& requestHeaderData);
             const HttpMethod& GetMethod() const;
-            const std::string& GetContentType() const;
+            const HttpContentDataType& GetContentType() const;
             size_t GetContentLength() const;
             const HttpCookieType& GetCookies() const;
             const HttpVersion& GetVersion() const;

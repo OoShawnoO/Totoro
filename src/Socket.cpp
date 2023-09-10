@@ -1,7 +1,7 @@
 #include <cstring>          /* memcpy */
 #include <fcntl.h>          /* fcntl */
 #include <sys/sendfile.h>   /* sendfile */
-#include "Socket.h"         /* Socket */
+#include "core/Socket.h"         /* Socket */
 static const std::string SocketChan = SocketChan;
 namespace totoro {
     int Socket::SendWithHeader(const char *data,size_t size) {
@@ -156,10 +156,12 @@ namespace totoro {
     }
 
      bool TCPSocket::Accept(TCPSocket& tcpSocket) {
+        tcpSocket.destAddrLen = sizeof(tcpSocket.destAddr);
         if((tcpSocket.sock = accept(sock,(sockaddr*)&tcpSocket.destAddr,&tcpSocket.destAddrLen)) < 0){
             LOG_ERROR(SocketChan, strerror(errno));
             return false;
         }
+
         tcpSocket.myAddr = myAddr;
         return true;
     }

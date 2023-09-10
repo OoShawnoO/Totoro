@@ -66,8 +66,8 @@ namespace totoro {
     }
     /* Connection Public Impl */
     int ProxyBase::Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,
-                      bool edgeTriggle,bool oneShot) {
-        Connection::Init(sock, myAddr, destAddr, epollId, edgeTriggle, oneShot);
+                      IPFilter* filter,bool edgeTriggle,bool oneShot) {
+        Connection::Init(sock, myAddr, destAddr, epollId,filter, edgeTriggle, oneShot);
         if(forwardSocket.Sock() == BAD_FILE_DESCRIPTOR){
             auto addressJson = Configure::Get()["PROXY"][std::to_string(ntohs(myAddr.sin_port))];
             int index = rand() % addressJson.size();

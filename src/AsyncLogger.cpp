@@ -2,7 +2,7 @@
 #include <cstring>
 #include <sstream>
 #include <utility>
-#include "AsyncLogger.h"
+#include "core/AsyncLogger.h"
 
 
 namespace totoro {

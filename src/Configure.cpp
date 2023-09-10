@@ -1,4 +1,4 @@
-#include "Configure.h"
+#include "core/Configure.h"
 
 namespace totoro {
     Configure::Configure(const std::string &filePath) {

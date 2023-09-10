@@ -5,18 +5,20 @@
 const std::string ConnectionChan = "Connection";
 namespace totoro {
     /* Init Impl */
-    void Connection::Init(TCPSocket& tcpSocket,EpollID _epollId,bool _edgeTriggle,bool _oneShot){
+    void Connection::Init(TCPSocket& tcpSocket,EpollID _epollId,IPFilter* _filter,bool _edgeTriggle,bool _oneShot){
         TCPSocket::operator=(tcpSocket);
         epollId = _epollId;
         edgeTriggle = _edgeTriggle;
         oneShot = _oneShot;
+        filter = _filter;
     }
 
-    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr, EpollID _epollId, bool _edgeTriggle, bool _oneShot) {
+    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr, EpollID _epollId,IPFilter* _filter, bool _edgeTriggle, bool _oneShot) {
         Socket::Init(sock,myAddr,destAddr);
         epollId = _epollId;
         edgeTriggle = _edgeTriggle;
         oneShot = _oneShot;
+        filter = _filter;
         return -1;
     }
     /* About Epoll Impl */
@@ -117,7 +119,7 @@ namespace totoro {
                     if(status == None) break;
                     switch(ret) {
                         case 0 : lastStatus = AfterWrite;
-                        case 1 : status = None; break;
+                        case 1 : RegisterNextEvent(sock,Read,true);status = None; break;
                         default:{
                             LOG_ERROR(ConnectionChan,"AfterWriteCallback failed");
                             status = Error;
@@ -176,6 +178,16 @@ namespace totoro {
     int Connection::ShutDown() {
         shutdown(sock,SHUT_RD);
         return 1;
+    }
+
+    bool Connection::BanAddr(in_addr_t addr) {
+        if(!filter) return false;
+        return filter->AddBan(addr);
+    }
+
+    bool Connection::AllowAddr(in_addr_t addr) {
+        if(!filter) return false;
+        return filter->AddAllow(addr);
     }
 }
 

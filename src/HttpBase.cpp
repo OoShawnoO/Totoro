@@ -298,7 +298,13 @@ namespace totoro {
     }
 
     int HttpBase::AfterWriteCallback() {
-        return SendResponseHeader() && SendResponseBody() ? 1 : -1;
+        if(!SendResponseHeader()) { LOG_ERROR(HttpBaseChan,"send response header failed");return -1; }
+        if(!SendResponseBody()) { LOG_ERROR(HttpBaseChan,"send response body failed");return -1; }
+        requestHeader.Clear();
+        requestBody.Clear();
+        responseHeader.Clear();
+        responseBody.Clear();
+        return 1;
     }
 
     bool HttpBase::SendResponseHeader() {
@@ -447,7 +453,7 @@ namespace totoro {
         return true;
     }
 
-    const std::string &HttpBase::RequestHeader::GetContentType() const {
+    const HttpContentDataType& HttpBase::RequestHeader::GetContentType() const {
         return fields.find("Content-Type")->second[0];
     }
 
