@@ -26,6 +26,7 @@ namespace totoro {
         ThreadPool<T> threadPool                                        {4,8196};
         std::atomic<int> currentConnectCount                            {0};
         std::unordered_map<SocketID ,std::pair<sockaddr_in,sockaddr_in>> candidateMap;
+        std::unordered_map<SocketID,SocketID> forwardCandidateMap;
         std::unordered_map<SocketID ,std::shared_ptr<T>> connectionMap  ;
 
         void NoneBlock(SocketID socketId) {
@@ -56,6 +57,21 @@ namespace totoro {
 
         bool getMapIterator(SocketID cur,typename std::unordered_map<int,std::shared_ptr<T>>::iterator& mapIterator){
             if((mapIterator = connectionMap.find(cur)) == connectionMap.end()){
+
+                typename std::unordered_map<SocketID,SocketID>::iterator forwardIter;
+                if((forwardIter = forwardCandidateMap.find(cur)) != forwardCandidateMap.end()){
+                    if((mapIterator = connectionMap.find(forwardIter->second)) == connectionMap.end()){
+                        LOG_ERROR(EpollerChan,"not found connection for forward socket");
+                        return false;
+                    }
+                    if(!connectionMap.insert({cur,mapIterator->second}).second){
+                        LOG_ERROR(EpollerChan,"can't insert forward socket to connection map");
+                        return false;
+                    }
+                    forwardCandidateMap.erase(forwardIter);
+                    return true;
+                }
+
                 std::shared_ptr<T> conn;
                 typename std::unordered_map<SocketID,std::pair<sockaddr_in,sockaddr_in>>::iterator iter;
                 if(!connectionPool.acquire(conn)){
@@ -68,29 +84,19 @@ namespace totoro {
                     LOG_ERROR(EpollerChan,"not found candidate addr");
                     return false;
                 }
-                int ret = conn->Init(cur,iter->second.first,iter->second.second,id,filter,edgeTriggle,oneShot);
-                if(ret == -2){
+                int ret = conn->Init(cur,
+                                     iter->second.first,
+                                     iter->second.second,
+                                     id,forwardCandidateMap,
+                                     filter,edgeTriggle,oneShot);
+                if(ret < 0){
                     conn->Close();
                     connectionPool.release(conn);
                     return false;
                 }
                 candidateMap.erase(iter);
                 std::pair<typename std::unordered_map<SocketID,std::shared_ptr<T>>::iterator,bool> result;
-                if(ret > 0){
-                    if(EpollAdd(ret) < 0){
-                        LOG_ERROR(EpollerChan,"epoll add new failed");
-                        conn->Close();
-                        connectionPool.release(conn);
-                        return false;
-                    }
-                    result = connectionMap.insert({ret,conn});
-                    if(!result.second){
-                        LOG_ERROR(EpollerChan,"connectionMap already have key");
-                        conn->Close();
-                        connectionPool.release(conn);
-                        return false;
-                    }
-                }
+
                 result = connectionMap.insert({cur,conn});
                 if(!result.second){
                     LOG_ERROR(EpollerChan,"connectionMap already have key");
@@ -122,7 +128,7 @@ namespace totoro {
                     connection->SetWorkSock(cur);
                     auto event = events[index].events;
                     if(event & EPOLLRDHUP){
-                        LOG_INFO(EpollerChan,"connection close");
+                        LOG_TRACE(EpollerChan,"connection close");
                         DelConnection(connection);
                     }else if(event & EPOLLERR){
                         LOG_ERROR(EpollerChan,"epoll error");
@@ -142,7 +148,7 @@ namespace totoro {
         }
     public:
         explicit Epoller(bool& _isStop,IPFilter* _filter = nullptr,
-                         bool _et = true,bool _oneShot = true,bool _noneBlock = false):
+                         bool _et = false,bool _oneShot = true,bool _noneBlock = false):
         isStop(_isStop),filter(_filter),edgeTriggle(_et),
         oneShot(_oneShot),noneBlock(_noneBlock){
             if((id =epoll_create(1234)) < 0){

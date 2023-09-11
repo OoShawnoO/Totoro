@@ -238,9 +238,8 @@ namespace totoro {
     int HttpBase::AfterReadCallback() {
         if(requestHeader.GetMethod() != POST
         && requestHeader.GetMethod() != PATCH
-        && requestHeader.GetMethod() != PUT){
-            return 1;
-        }
+        && requestHeader.GetMethod() != PUT) return 1;
+
         if(requestHeader.GetContentLength() > data.size()){
             std::string temp;
             if(TCPSocket::Recv(temp,requestHeader.GetContentLength() - data.size()) < 0){
@@ -304,7 +303,7 @@ namespace totoro {
         requestBody.Clear();
         responseHeader.Clear();
         responseBody.Clear();
-        return 1;
+        return Connection::AfterWriteCallback();;
     }
 
     bool HttpBase::SendResponseHeader() {

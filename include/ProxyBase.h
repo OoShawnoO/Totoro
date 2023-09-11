@@ -16,15 +16,18 @@ namespace totoro {
     protected:
         virtual int MainReadCallback();
         virtual int MainAfterReadCallback();
-        virtual int MainWriteCallback();
-        virtual int MainAfterWriteCallback();
-
         virtual int ForwardReadCallback();
         virtual int ForwardAfterReadCallback();
         virtual int ForwardWriteCallback();
         virtual int ForwardAfterWriteCallback();
+        virtual int MainWriteCallback();
+        virtual int MainAfterWriteCallback();
+
+        bool AddForward();
     public:
-        int Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,IPFilter* filter,bool edgeTriggle = false,bool oneShot = true) override;
+        int Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,
+                 std::unordered_map<SocketID,SocketID>& forwardCandidateMap,
+                 IPFilter* filter,bool edgeTriggle = false,bool oneShot = true) override;
         int Close() override;
     };
 

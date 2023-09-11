@@ -33,9 +33,8 @@ namespace totoro {
         }
     public:
         Acceptor(const std::string& ip,short port,int reactorCount,bool& _isStop,
-                 const std::vector<in_addr_t>& _bannedIPs = {},
-                 const std::vector<in_addr_t>& _allowedIPs = {},
-                 int timeOut = -1,bool _et = false,bool _oneShot = true,bool _noneBlock = false)
+                 const std::vector<in_addr_t>& _bannedIPs = {},const std::vector<in_addr_t>& _allowedIPs = {},
+                 int timeOut = -1,bool _et = true,bool _oneShot = true,bool _noneBlock = false)
                  :isStop(_isStop){
             if(reactorCount <= 0) {
                 LOG_FATAL("Epoller","reactor count must > 0");

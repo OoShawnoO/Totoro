@@ -24,12 +24,12 @@ namespace totoro {
         void Run();
         int ShutDown();
         int Close() override;
-        bool BanAddr(in_addr_t addr);
-        bool AllowAddr(in_addr_t addr);
+        bool BanAddr(const std::string& banIp);
+        bool AllowAddr(const std::string& allowIp);
         void SetWorkSock(SocketID sock);
         void RegisterNextEvent(SocketID sock,Status nextStatus,bool isMod);
         void Init(TCPSocket& tcpSocket,EpollID epollId,IPFilter* filter = nullptr,bool edgeTriggle = false,bool oneShot = true);
-        virtual int Init(SocketID sock,sockaddr_in myAddr,sockaddr_in destAddr,EpollID epollId,
+        virtual int Init(SocketID sock,sockaddr_in myAddr,sockaddr_in destAddr,EpollID epollId,std::unordered_map<SocketID,SocketID>& forwardCandidateMap,
                          IPFilter* filter = nullptr,bool edgeTriggle = false,bool oneShot = true);
     protected:
         SocketID workSock               {BAD_FILE_DESCRIPTOR};
@@ -39,6 +39,7 @@ namespace totoro {
         Status lastStatus               {None};
         bool edgeTriggle                {false};
         bool oneShot                    {true};
+        std::unordered_map<SocketID,SocketID>* forwardCandidateMap;
         IPFilter* filter                {nullptr};
 
         virtual int ReadCallback();

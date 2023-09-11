@@ -8,20 +8,16 @@ namespace totoro {
     }
 
     int ProxyBase::MainAfterReadCallback() {
-        return forwardSocket.SendAll(data)>=0 ? 0 : -1;
-    }
-
-    int ProxyBase::MainWriteCallback() {
-        return Connection::WriteCallback();
-    }
-
-    int ProxyBase::MainAfterWriteCallback() {
-        return Connection::AfterWriteCallback();
+        int ret = forwardSocket.SendAll(data);
+        RegisterNextEvent(forwardSocket.Sock(),Read,true);
+        if(ret == 0) return 0;
+        else if(ret < 0) return -1;
+        else return 2;
     }
 
     int ProxyBase::ForwardReadCallback() {
-        if(forwardSocket.RecvAll(data)) return 1;
-        return -1;
+        if(!forwardSocket.RecvAll(data)) return -1;
+        return 1;
     }
 
     int ProxyBase::ForwardAfterReadCallback() {
@@ -29,12 +25,21 @@ namespace totoro {
     }
 
     int ProxyBase::ForwardWriteCallback() {
-        RegisterNextEvent(sock,Write,true);
         return 1;
     }
 
     int ProxyBase::ForwardAfterWriteCallback() {
+        RegisterNextEvent(sock,Write,true);
         return 1;
+    }
+
+    int ProxyBase::MainWriteCallback() {
+        return Connection::WriteCallback();
+    }
+
+    int ProxyBase::MainAfterWriteCallback() {
+        RegisterNextEvent(forwardSocket.Sock(),Read,true);
+        return Connection::AfterWriteCallback();
     }
     /* Private Impl */
     int ProxyBase::ReadCallback() {
@@ -66,21 +71,22 @@ namespace totoro {
     }
     /* Connection Public Impl */
     int ProxyBase::Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,
+                      std::unordered_map<SocketID,SocketID>& forwardCandidateMap,
                       IPFilter* filter,bool edgeTriggle,bool oneShot) {
-        Connection::Init(sock, myAddr, destAddr, epollId,filter, edgeTriggle, oneShot);
+        Connection::Init(sock, myAddr, destAddr, epollId,forwardCandidateMap,filter, edgeTriggle, oneShot);
         if(forwardSocket.Sock() == BAD_FILE_DESCRIPTOR){
-            auto addressJson = Configure::Get()["PROXY"][std::to_string(ntohs(myAddr.sin_port))];
-            int index = rand() % addressJson.size();
-            std::string ip = addressJson[index]["ip"];
-            short port = addressJson[index]["port"];
+            auto addressJson = Configure::Get()["REVERSE_PROXY"][std::to_string(ntohs(myAddr.sin_port))];
+            std::string ip = addressJson[0]["ip"];
+            short port = addressJson[0]["port"];
 
             forwardSocket.Init();
             if(!forwardSocket.Connect(ip,port)){
                 LOG_ERROR(ProxyBaseChan,"can't connect destination address");
                 return -2;
             }
+            AddForward();
         }
-        return forwardSocket.Sock();
+        return 0;
     }
 
     int ProxyBase::Close() {
@@ -88,5 +94,17 @@ namespace totoro {
         forwardSocket.Close();
         Connection::Close();
         return proxyFd;
+    }
+
+    bool ProxyBase::AddForward() {
+        if(!forwardCandidateMap->insert({forwardSocket.Sock(), sock}).second){
+            LOG_ERROR(ProxyBaseChan,"unable to add forward pair");
+            return false;
+        }
+        if(EpollAdd(forwardSocket.Sock()) < 0){
+            LOG_ERROR(ProxyBaseChan, strerror(errno));
+            return false;
+        }
+        return true;
     }
 } // totoro

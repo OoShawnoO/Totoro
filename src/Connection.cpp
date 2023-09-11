@@ -13,13 +13,16 @@ namespace totoro {
         filter = _filter;
     }
 
-    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr, EpollID _epollId,IPFilter* _filter, bool _edgeTriggle, bool _oneShot) {
+    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr,EpollID _epollId,
+                         std::unordered_map<SocketID,SocketID>& _forwardCandidateMap,
+                         IPFilter* _filter,bool _edgeTriggle, bool _oneShot) {
         Socket::Init(sock,myAddr,destAddr);
         epollId = _epollId;
         edgeTriggle = _edgeTriggle;
         oneShot = _oneShot;
         filter = _filter;
-        return -1;
+        forwardCandidateMap = &_forwardCandidateMap;
+        return 0;
     }
     /* About Epoll Impl */
     int Connection::EpollAdd(SocketID _sock) const {
@@ -56,11 +59,15 @@ namespace totoro {
         if(!isMod) return;
         switch(status){
             case Read : {
-                EpollMod(_sock,EPOLLIN);
+                if(EpollMod(_sock,EPOLLIN) < 0){
+                    LOG_ERROR(ConnectionChan, strerror(errno));
+                }
                 break;
             }
             case Write : {
-                EpollMod(_sock,EPOLLOUT);
+                if(EpollMod(_sock,EPOLLOUT) < 0){
+                    LOG_ERROR(ConnectionChan, strerror(errno));
+                }
                 break;
             }
             default:{}
@@ -79,6 +86,7 @@ namespace totoro {
                     ret = ReadCallback();
                     if(status == None) break;
                     switch(ret){
+                        case 2 : status = None; break;
                         case 1 : status = AfterRead; break;
                         case 0 : lastStatus = Read;status = None; break;
                         default: {
@@ -92,6 +100,7 @@ namespace totoro {
                     ret = AfterReadCallback();
                     if(status == None) break;
                     switch(ret){
+                        case 2 : status = None; break;
                         case 1 : status = Write; break;
                         case 0 : lastStatus = AfterRead;status = None; break;
                         default: {
@@ -105,6 +114,7 @@ namespace totoro {
                     ret = WriteCallback();
                     if(status == None) break;
                     switch(ret){
+                        case 2 : status = None; break;
                         case 1 : status = AfterWrite; break;
                         case 0 : lastStatus = Write;status = None; break;
                         default: {
@@ -118,8 +128,9 @@ namespace totoro {
                     ret = AfterWriteCallback();
                     if(status == None) break;
                     switch(ret) {
+                        case 2 : status = None; break;
                         case 0 : lastStatus = AfterWrite;
-                        case 1 : RegisterNextEvent(sock,Read,true);status = None; break;
+                        case 1 : status = None; break;
                         default:{
                             LOG_ERROR(ConnectionChan,"AfterWriteCallback failed");
                             status = Error;
@@ -158,12 +169,6 @@ namespace totoro {
     }
 
     int Connection::WriteCallback() {
-        data.clear();
-        data = "HTTP/1.1 200 OK\n"
-               "Content-Type: text/html\n"
-               "Content-Length: 6\n"
-               "\n"
-               "123456";
         if(TCPSocket::SendAll(data)){
             return 1;
         }
@@ -180,13 +185,15 @@ namespace totoro {
         return 1;
     }
 
-    bool Connection::BanAddr(in_addr_t addr) {
+    bool Connection::BanAddr(const std::string& banIp) {
         if(!filter) return false;
+        in_addr_t addr = inet_addr(banIp.c_str());
         return filter->AddBan(addr);
     }
 
-    bool Connection::AllowAddr(in_addr_t addr) {
+    bool Connection::AllowAddr(const std::string& allowIp) {
         if(!filter) return false;
+        in_addr_t addr = inet_addr(allowIp.c_str());
         return filter->AddAllow(addr);
     }
 }
