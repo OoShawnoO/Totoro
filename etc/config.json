@@ -19,9 +19,25 @@
   "SERVER": [
     {
       "ip": "0.0.0.0",
+      "port": 8080,
+      "reactorNum": 1,
+      "epollTimeout": -1,
+      "allow":[],
+      "deny": [],
+      "edgeTriggle": true,
+      "oneShot": true,
+      "noneBlock": false
+    },
+    {
+      "ip": "0.0.0.0",
       "port": 8888,
-      "allow":["all"],
-      "deny": ["127.0.0.1"]
+      "reactorNum": 1,
+      "epollTimeout": -1,
+      "allow":[],
+      "deny": [],
+      "edgeTriggle": true,
+      "oneShot": true,
+      "noneBlock": false
     }
   ]
 }

@@ -75,7 +75,7 @@ namespace totoro {
         bool Bind() override;
         bool Listen();
         bool Accept(TCPSocket& tcpSocket);
-        bool Connect(const std::string& ip,short port);
+        bool Connect(const std::string& ip,unsigned short port);
         int SendWithHeader(const char* data,size_t size) override;
         int SendWithHeader(const std::string& data) override;
         int SendWithHeader(std::string&& data) override;

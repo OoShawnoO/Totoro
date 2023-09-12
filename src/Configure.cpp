@@ -6,7 +6,7 @@ namespace totoro {
         conf = Json::parse(in);
     }
 
-    Json &totoro::Configure::Get() {
+    const Json &totoro::Configure::Get() {
         static Configure config("etc/config.json");
         return config.conf;
     }

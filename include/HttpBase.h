@@ -82,7 +82,7 @@ namespace totoro {
     extern std::unordered_map<std::string,std::string> HttpContentTypeMap;
     extern const std::string HttpErrorTemplateHtml;
 
-    class HttpBase : public Connection {
+    class HttpBase : public virtual Connection {
     protected:
         int ReadCallback() override;
         int AfterReadCallback() override;

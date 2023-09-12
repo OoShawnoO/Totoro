@@ -15,7 +15,7 @@ namespace totoro {
          * @brief 获取配置文件
          * @return 解析为json格式配置
          */
-        static Json& Get();
+        static const Json& Get();
     };
 
 } // totoro

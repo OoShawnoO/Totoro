@@ -70,24 +70,6 @@ namespace totoro {
         return MainAfterWriteCallback();
     }
     /* Connection Public Impl */
-    int ProxyBase::Init(SocketID sock, sockaddr_in myAddr, sockaddr_in destAddr, EpollID epollId,
-                      std::unordered_map<SocketID,SocketID>& forwardCandidateMap,
-                      IPFilter* filter,bool edgeTriggle,bool oneShot) {
-        Connection::Init(sock, myAddr, destAddr, epollId,forwardCandidateMap,filter, edgeTriggle, oneShot);
-        if(forwardSocket.Sock() == BAD_FILE_DESCRIPTOR){
-            auto addressJson = Configure::Get()["REVERSE_PROXY"][std::to_string(ntohs(myAddr.sin_port))];
-            std::string ip = addressJson[0]["ip"];
-            short port = addressJson[0]["port"];
-
-            forwardSocket.Init();
-            if(!forwardSocket.Connect(ip,port)){
-                LOG_ERROR(ProxyBaseChan,"can't connect destination address");
-                return -2;
-            }
-            AddForward();
-        }
-        return 0;
-    }
 
     int ProxyBase::Close() {
         int proxyFd = forwardSocket.Sock();

@@ -15,6 +15,13 @@ namespace totoro {
      */
     template<class T = Connection>
     class Epoller {
+        using ConnectionMap = std::unordered_map<SocketID ,std::shared_ptr<T>>;
+        using AddressCandidateMap = std::unordered_map<SocketID ,std::pair<sockaddr_in,sockaddr_in>>;
+        using ConnectionMapIterator = typename ConnectionMap::iterator;
+        using ForwardCandidateMapIterator = typename ForwardCandidateMap::iterator;
+        using AddressCandidateMapIterator = typename AddressCandidateMap::iterator;
+        using InsertConnectionMapResult = std::pair<ConnectionMapIterator,bool>;
+
         EpollID id                                                      {BAD_FILE_DESCRIPTOR};
         epoll_event events[4096]                                        {};
         bool edgeTriggle                                                {false};
@@ -25,9 +32,11 @@ namespace totoro {
         Pool<T> connectionPool                                          {1024};
         ThreadPool<T> threadPool                                        {4,8196};
         std::atomic<int> currentConnectCount                            {0};
-        std::unordered_map<SocketID ,std::pair<sockaddr_in,sockaddr_in>> candidateMap;
-        std::unordered_map<SocketID,SocketID> forwardCandidateMap;
-        std::unordered_map<SocketID ,std::shared_ptr<T>> connectionMap  ;
+        ConnectionInitParameter connectionInitParameter                 {};
+        ConnectionMap connectionMap                                     {};
+        AddressCandidateMap candidateMap                                {};
+        ForwardCandidateMap forwardCandidateMap                         {};
+
 
         void NoneBlock(SocketID socketId) {
             int option = fcntl(socketId,F_GETFL);
@@ -55,10 +64,10 @@ namespace totoro {
             return epoll_ctl(id,EPOLL_CTL_DEL,socketId,nullptr);
         }
 
-        bool getMapIterator(SocketID cur,typename std::unordered_map<int,std::shared_ptr<T>>::iterator& mapIterator){
+        bool getMapIterator(SocketID cur,ConnectionMapIterator & mapIterator){
             if((mapIterator = connectionMap.find(cur)) == connectionMap.end()){
 
-                typename std::unordered_map<SocketID,SocketID>::iterator forwardIter;
+                ForwardCandidateMapIterator forwardIter;
                 if((forwardIter = forwardCandidateMap.find(cur)) != forwardCandidateMap.end()){
                     if((mapIterator = connectionMap.find(forwardIter->second)) == connectionMap.end()){
                         LOG_ERROR(EpollerChan,"not found connection for forward socket");
@@ -73,7 +82,7 @@ namespace totoro {
                 }
 
                 std::shared_ptr<T> conn;
-                typename std::unordered_map<SocketID,std::pair<sockaddr_in,sockaddr_in>>::iterator iter;
+                AddressCandidateMapIterator iter;
                 if(!connectionPool.acquire(conn)){
                     close(cur);
                     LOG_ERROR(EpollerChan,"connection pool acquire failed");
@@ -84,18 +93,17 @@ namespace totoro {
                     LOG_ERROR(EpollerChan,"not found candidate addr");
                     return false;
                 }
-                int ret = conn->Init(cur,
-                                     iter->second.first,
-                                     iter->second.second,
-                                     id,forwardCandidateMap,
-                                     filter,edgeTriggle,oneShot);
+                connectionInitParameter.sock = cur;
+                connectionInitParameter.myAddr = iter->second.first;
+                connectionInitParameter.destAddr = iter->second.second;
+                int ret = conn->Init(connectionInitParameter);
                 if(ret < 0){
                     conn->Close();
                     connectionPool.release(conn);
                     return false;
                 }
                 candidateMap.erase(iter);
-                std::pair<typename std::unordered_map<SocketID,std::shared_ptr<T>>::iterator,bool> result;
+                InsertConnectionMapResult result;
 
                 result = connectionMap.insert({cur,conn});
                 if(!result.second){
@@ -113,7 +121,14 @@ namespace totoro {
         void poll(int timeOut){
             int ret,index,cur;
             TCPSocket tcpSocket{};
-            typename std::unordered_map<int,std::shared_ptr<T>>::iterator mapIterator;
+            ConnectionMapIterator mapIterator;
+
+            connectionInitParameter.epollId = id;
+            connectionInitParameter.filter = filter;
+            connectionInitParameter.oneShot = oneShot;
+            connectionInitParameter.edgeTriggle = edgeTriggle;
+            connectionInitParameter.forwardCandidateMap = &forwardCandidateMap;
+
             while(!isStop){
                 if((ret = epoll_wait(id,events,4096,timeOut)) < 0){
                     if(errno == EINTR) continue;

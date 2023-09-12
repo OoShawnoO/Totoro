@@ -5,23 +5,14 @@
 const std::string ConnectionChan = "Connection";
 namespace totoro {
     /* Init Impl */
-    void Connection::Init(TCPSocket& tcpSocket,EpollID _epollId,IPFilter* _filter,bool _edgeTriggle,bool _oneShot){
-        TCPSocket::operator=(tcpSocket);
-        epollId = _epollId;
-        edgeTriggle = _edgeTriggle;
-        oneShot = _oneShot;
-        filter = _filter;
-    }
-
-    int Connection::Init(SocketID sock,sockaddr_in myAddr, sockaddr_in destAddr,EpollID _epollId,
-                         std::unordered_map<SocketID,SocketID>& _forwardCandidateMap,
-                         IPFilter* _filter,bool _edgeTriggle, bool _oneShot) {
-        Socket::Init(sock,myAddr,destAddr);
-        epollId = _epollId;
-        edgeTriggle = _edgeTriggle;
-        oneShot = _oneShot;
-        filter = _filter;
-        forwardCandidateMap = &_forwardCandidateMap;
+    int Connection::Init(const ConnectionInitParameter& connectionInitParameter) {
+        filter = connectionInitParameter.filter;
+        epollId = connectionInitParameter.epollId;
+        oneShot = connectionInitParameter.oneShot;
+        edgeTriggle = connectionInitParameter.edgeTriggle;
+        forwardCandidateMap = connectionInitParameter.forwardCandidateMap;
+        Socket::Init(connectionInitParameter.sock,connectionInitParameter.myAddr,
+                     connectionInitParameter.destAddr);
         return 0;
     }
     /* About Epoll Impl */

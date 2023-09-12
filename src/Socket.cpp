@@ -2,7 +2,7 @@
 #include <fcntl.h>          /* fcntl */
 #include <sys/sendfile.h>   /* sendfile */
 #include "core/Socket.h"         /* Socket */
-static const std::string SocketChan = SocketChan;
+static const std::string SocketChan = "Socket";
 namespace totoro {
     int Socket::SendWithHeader(const char *data,size_t size) {
         return 1;
@@ -21,8 +21,8 @@ namespace totoro {
     }
 
     int Socket::Close() {
-        if(sock != -1){ close(sock); sock = -1;}
-        if(file != -1){ close(file); file = -1;}
+        if(sock != BAD_FILE_DESCRIPTOR){ close(sock); sock = BAD_FILE_DESCRIPTOR;}
+        if(file != BAD_FILE_DESCRIPTOR){ close(file); file = BAD_FILE_DESCRIPTOR;}
         return -1;
     }
 
@@ -166,7 +166,7 @@ namespace totoro {
         return true;
     }
 
-    bool TCPSocket::Connect(const std::string& ip, short port) {
+    bool TCPSocket::Connect(const std::string& ip, unsigned short port) {
         if(sock != -1) {
             close(sock);
             sock = -1;

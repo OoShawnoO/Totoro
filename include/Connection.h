@@ -12,6 +12,29 @@
 namespace totoro {
     using EpollID = int;
     using SocketID = int;
+    using ForwardCandidateMap = std::unordered_map<SocketID,SocketID>;
+    /**
+     * @brief 负责初始化连接 \n Response connection init
+     */
+    struct ConnectionInitParameter{
+        // 客户端TCP连接Socket /  client tcp connection socket
+        SocketID sock                               {BAD_FILE_DESCRIPTOR};
+        // 服务器端地址        /  server address
+        sockaddr_in myAddr                          {};
+        // 客户端地址          /  client address
+        sockaddr_in destAddr                        {};
+        // 从属epoll实例id     /  dependent epoll instance ID
+        EpollID epollId                             {BAD_FILE_DESCRIPTOR};
+        // 边缘触发            /  edge triggle
+        bool edgeTriggle                            {false};
+        // one shot            /  one shot
+        bool oneShot                                {true};
+        // ip 过滤器           /  ip filter
+        IPFilter* filter                            {nullptr};
+        // 转发候选表          / forward candidate map
+        ForwardCandidateMap* forwardCandidateMap    {nullptr};
+    };
+
     /**
      * @brief 负责连接相关事务的处理 \n Response connection transaction
      */
@@ -28,19 +51,17 @@ namespace totoro {
         bool AllowAddr(const std::string& allowIp);
         void SetWorkSock(SocketID sock);
         void RegisterNextEvent(SocketID sock,Status nextStatus,bool isMod);
-        void Init(TCPSocket& tcpSocket,EpollID epollId,IPFilter* filter = nullptr,bool edgeTriggle = false,bool oneShot = true);
-        virtual int Init(SocketID sock,sockaddr_in myAddr,sockaddr_in destAddr,EpollID epollId,std::unordered_map<SocketID,SocketID>& forwardCandidateMap,
-                         IPFilter* filter = nullptr,bool edgeTriggle = false,bool oneShot = true);
+        virtual int Init(const ConnectionInitParameter& connectionInitParameter);
     protected:
-        SocketID workSock               {BAD_FILE_DESCRIPTOR};
-        EpollID epollId                 {BAD_FILE_DESCRIPTOR};
-        std::string data                {};
-        Status status                   {None};
-        Status lastStatus               {None};
-        bool edgeTriggle                {false};
-        bool oneShot                    {true};
-        std::unordered_map<SocketID,SocketID>* forwardCandidateMap;
-        IPFilter* filter                {nullptr};
+        SocketID workSock                           {BAD_FILE_DESCRIPTOR};
+        EpollID epollId                             {BAD_FILE_DESCRIPTOR};
+        std::string data                            {};
+        Status status                               {None};
+        Status lastStatus                           {None};
+        bool edgeTriggle                            {false};
+        bool oneShot                                {true};
+        IPFilter* filter                            {nullptr};
+        ForwardCandidateMap* forwardCandidateMap    {nullptr};
 
         virtual int ReadCallback();
         virtual int AfterReadCallback();

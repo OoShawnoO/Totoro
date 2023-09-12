@@ -23,6 +23,7 @@ namespace totoro {
             static int index = 0;
             return reactors[++index % reactors.size()];
         }
+
         Epoller<T>& Minimum(){
             int minCount = INT_MAX;
             Epoller<T>* cur = nullptr;
@@ -32,16 +33,24 @@ namespace totoro {
             return *cur;
         }
     public:
-        Acceptor(const std::string& ip,short port,int reactorCount,bool& _isStop,
-                 const std::vector<in_addr_t>& _bannedIPs = {},const std::vector<in_addr_t>& _allowedIPs = {},
-                 int timeOut = -1,bool _et = true,bool _oneShot = true,bool _noneBlock = false)
+        Acceptor(bool& _isStop,const Json& config)
                  :isStop(_isStop){
-            if(reactorCount <= 0) {
+            std::string ip = config["ip"];
+            short port = config["port"];
+            int epollTimeout = config["epollTimeout"];
+            int reactorNum = config["reactorNum"];
+            bool edgeTriggle = config["edgeTriggle"];
+            bool oneShot = config["oneShot"];
+            bool noneBlock = config["noneBlock"];
+            auto allow = config["allow"];
+            auto deny = config["deny"];
+
+            if(reactorNum <= 0) {
                 LOG_FATAL("Epoller","reactor count must > 0");
                 exit(-1);
             }
-            for(int i=0;i<reactorCount;i++){
-                reactors.emplace_back(_isStop,&filter,_et,_oneShot,_noneBlock);
+            for(int i=0;i<reactorNum;i++){
+                reactors.emplace_back(_isStop,&filter,edgeTriggle,oneShot,noneBlock);
             }
             if(!listenSocket.Init(ip,port)){
                 LOG_ERROR("Epoller","init listen socket failed");
@@ -56,11 +65,11 @@ namespace totoro {
                 exit(-1);
             }
 
-            for(const auto& bannedIP : _bannedIPs) filter.AddBan(bannedIP);
-            for(const auto& allowedIP : _allowedIPs) filter.AddAllow(allowedIP);
+            for(const auto& bannedIP : deny) filter.AddBan(inet_addr(std::string(bannedIP).c_str()));
+            for(const auto& allowedIP : allow) filter.AddAllow(inet_addr(std::string(allowedIP).c_str()));
 
             for(auto& reactor : reactors) {
-                std::thread(Epoller<T>::Poll,&reactor,timeOut).detach();
+                std::thread(Epoller<T>::Poll,&reactor,epollTimeout).detach();
             }
         }
 
@@ -78,6 +87,7 @@ namespace totoro {
                     tcpSocket.Close();
                     continue;
                 }
+
                 Minimum().AddConnection(tcpSocket);
             }
         }
