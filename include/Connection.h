@@ -38,7 +38,7 @@ namespace totoro {
     /**
      * @brief 负责连接相关事务的处理 \n Response connection transaction
      */
-    class Connection : public TCPSocket{
+    class Connection : virtual public TCPSocket{
     public:
         enum Status {
             None,Read,Write,AfterRead,AfterWrite,Error

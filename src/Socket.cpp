@@ -320,7 +320,7 @@ namespace totoro {
             data.clear();
             header h{};
             if(::recv(sock,&h,TCP_HEADER_SIZE,0) <= 0){
-                return false;
+                return -1;
             }
             readTotalBytes = h.size;
             readCursor = 0;
@@ -375,6 +375,7 @@ namespace totoro {
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
+        isNew = true;
         close(file);
         file = -1;
         return 1;
@@ -404,6 +405,7 @@ namespace totoro {
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
+        isNew = true;
         close(file);
         file = -1;
         return 1;
@@ -661,6 +663,7 @@ namespace totoro {
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
+        isNew = true;
         close(file);
         file = -1;
         return 1;
@@ -690,6 +693,7 @@ namespace totoro {
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
         }
+        isNew = true;
         close(file);
         file = -1;
         return 1;

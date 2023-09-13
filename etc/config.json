@@ -1,4 +1,6 @@
 {
+  "SERVER-KEY":"/home/sstc/huzhida/Totoro/test/server.key",
+  "SERVER-CERT": "/home/sstc/huzhida/Totoro/test/server.crt",
   "LOG": {
     "channels" : {
       "TEST": "TRACE",

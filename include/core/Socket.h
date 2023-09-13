@@ -57,16 +57,17 @@ namespace totoro {
         virtual int Close();
     };
 
-    class TCPSocket : public Socket {
+    class TCPSocket : virtual public Socket {
     #pragma pack(1)
-        struct header{
-            size_t size;
-        };
-    #define TCP_HEADER_SIZE sizeof(header)
+#define TCP_HEADER_SIZE sizeof(header)
     #pragma pack()
     protected:
         int sendImpl(const char* data) override;
         int recvImpl(std::string& data) override;
+
+        struct header{
+            size_t size;
+        };
     public:
         TCPSocket();
         ~TCPSocket() override;
@@ -95,7 +96,7 @@ namespace totoro {
         int Close() override;
     };
 
-    class UDPSocket : public Socket {
+    class UDPSocket : virtual public Socket {
     protected:
         int sendImpl(const char* data) override;
         int recvImpl(std::string& data) override;

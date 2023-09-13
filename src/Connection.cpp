@@ -130,6 +130,7 @@ namespace totoro {
                     break;
                 }
                 case Error :
+                    RegisterNextEvent(sock,Read,true);
                     ShutDown();
                 case None : {
                     return;
