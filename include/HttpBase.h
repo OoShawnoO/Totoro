@@ -82,6 +82,10 @@ namespace totoro {
     extern std::unordered_map<std::string,std::string> HttpContentTypeMap;
     extern const std::string HttpErrorTemplateHtml;
 
+    /**
+     * @brief 负责HTTP连接相关事务 / Response HTTP connection transactions
+     */
+
     class HttpBase : public virtual Connection {
     protected:
         int ReadCallback() override;
@@ -111,15 +115,25 @@ namespace totoro {
             std::string boundary;
             void parseParameters(std::string&& parameterText);
         public:
+            // 解析请求头 / Parse request header
             bool Parse(std::string& requestHeaderData);
+            // 获取请求方法 / Get request method
             const HttpMethod& GetMethod() const;
+            // 获取请求内容类型 / Get request content type
             const HttpContentDataType& GetContentType() const;
+            // 获取请求内容长度 / Get request content length
             size_t GetContentLength() const;
+            // 获取请求cookies / Get request cookies
             const HttpCookieType& GetCookies() const;
+            // 获取请求HTTP版本 / Get request HTTP version
             const HttpVersion& GetVersion() const;
+            // 获取请求url / Get request url
             const std::string& GetUrl() const;
+            // 获取请求参数 / Get request parameters
             const HttpParameterType& GetParameters() const;
+            // 获取请求字段 / Get request fields
             const HttpHeaderFieldsType& GetFields() const;
+            // 获取多分界数据分界线 / Get request multi-part boundary
             const std::string& GetBoundary() const;
             void Clear();
         }requestHeader;
@@ -134,14 +148,23 @@ namespace totoro {
             // Json 数据 / Json Data
             Json json;
         public:
+            // 解析请求体 / Parse request body
             bool Parse(const std::string& requestBodyData,const RequestHeader& header);
+            // 获取请求体Json数据 / Get request body Json data
             const Json& GetJson() const;
+            // 获取请求体Form数据 / Get request body Form data
             const HttpFormType& GetForm() const;
+            // 获取请求体Form数据字段 / Get request body Form field data
             std::string GetFormField(const std::string& name);
+            // 获取请求体文件 / Get request body files
             const HttpMultiPartType& GetFiles() const;
+            // 获取请求体文件数据 / Get request body file data
             std::string GetFilesFieldData(const std::string& name);
+            // 获取请求体文件名 / Get request body file name
             std::string GetFilesFieldFileName(const std::string& name);
+            // 获取请求体文件内容 / Get request body file content
             std::string GetFilesFieldContentType(const std::string& name);
+            // 下载请求体中文件 / Download files in request body
             bool DownloadFilesField(const std::string& fieldName,const std::string& destFilePath,std::string fileName = "") const;
             void Clear();
         }requestBody;
@@ -155,12 +178,19 @@ namespace totoro {
             // 响应头字段 / Response Header Fields
             HttpHeaderFieldsType fields;
         public:
+            // 设置HTTP版本 / Set HTTP version
             void SetVersion(HttpVersion version);
+            // 设置状态码 / Set Status
             void SetStatus(HttpStatus status);
+            // 设置内容类型 / Set content type
             void SetContentType(const std::string& contentType);
+            // 设置内容长度 / Set content length
             void SetContentLength(size_t length);
+            // 设置cookie / Set cookie
             void SetCookie(const std::string& cookieKey,const std::string& cookieValue);
+            // 设置字段 / Set field
             void SetField(const std::string& fieldKey,const std::vector<std::string>& fieldValues);
+            // 字符串化 / To string
             std::string toString();
             void Clear();
         }responseHeader;
@@ -172,9 +202,13 @@ namespace totoro {
             // 响应体数据 / Response Body Data
             std::string data;
         public:
+            // 设置文件资源路径 / Set resource path
             void SetResourcePath(const std::string& resourcePath);
+            // 获取文件资源路径 / Get resource path
             const std::string& GetResourcePath();
+            // 设置传输数据 / Set transport data
             void SetData(std::string& data);
+            // 获取传输数据 / Get transport data
             const std::string& GetData();
             void Clear();
         }responseBody;

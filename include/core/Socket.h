@@ -11,6 +11,9 @@
 namespace totoro {
 #define SOCKET_BUF_SIZE 4096
 #define BAD_FILE_DESCRIPTOR (-1)
+    /**
+     * @brief Socket接口要求 \n Socket interface requirement
+     */
     class Socket {
     protected:
         bool isNew                          {true};
@@ -56,7 +59,9 @@ namespace totoro {
         sockaddr_in DestAddr() const;
         virtual int Close();
     };
-
+    /**
+     * @brief TCP 套接字实现 / TCP Socket Implement
+     */
     class TCPSocket : virtual public Socket {
     #pragma pack(1)
 #define TCP_HEADER_SIZE sizeof(header)
@@ -76,7 +81,7 @@ namespace totoro {
         bool Bind() override;
         bool Listen();
         bool Accept(TCPSocket& tcpSocket);
-        bool Connect(const std::string& ip,unsigned short port);
+        virtual bool Connect(const std::string& ip,unsigned short port);
         int SendWithHeader(const char* data,size_t size) override;
         int SendWithHeader(const std::string& data) override;
         int SendWithHeader(std::string&& data) override;
@@ -95,7 +100,9 @@ namespace totoro {
 
         int Close() override;
     };
-
+    /**
+     * @brief UDP 套接字实现 / UDP Socket Implement
+     */
     class UDPSocket : virtual public Socket {
     protected:
         int sendImpl(const char* data) override;

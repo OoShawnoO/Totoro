@@ -228,7 +228,7 @@ namespace totoro {
         return ret;
     };
 
-    /* Connection Protected Impl */
+
     int HttpBase::ReadCallback() {
         if(!TCPSocket::RecvAll(data)) return -1;
         if(!requestHeader.Parse(data)) return -1;

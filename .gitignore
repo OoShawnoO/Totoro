@@ -25,7 +25,13 @@
 *.out
 *.app
 
-CMakeLists.txt
 main.cpp
 cmake-build-debug
-test
+# third party
+thirdparty/*
+!thirdparty/*.cmake
+
+# test
+test/*
+!test/Test.h
+!test/test.png

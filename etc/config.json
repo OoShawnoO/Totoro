@@ -1,6 +1,9 @@
 {
-  "SERVER-KEY":"/home/sstc/huzhida/Totoro/test/server.key",
-  "SERVER-CERT": "/home/sstc/huzhida/Totoro/test/server.crt",
+  "SERVER-KEY":"test/server.key",
+  "SERVER-CERT": "test/server.crt",
+  "CA-CERT": "test/ca.crt",
+  "CLIENT-KEY": "test/client.key",
+  "CLIENT-CERT": "test/client.crt",
   "LOG": {
     "channels" : {
       "TEST": "TRACE",
@@ -10,12 +13,17 @@
     "savePath" : "log/log.log"
   },
   "FORWARD_PROXY": {
-    "8889": []
   },
-  "REVERSE_PROXY": {
+  "HTTP_REVERSE_PROXY": {
     "8888": [
       {"ip": "127.0.0.1","port": 8080},
       {"ip": "127.0.0.1","port": 8081}
+    ]
+  },
+  "HTTPS_REVERSE_PROXY": {
+    "9999": [
+      {"ip": "127.0.0.1","port": 9090},
+      {"ip": "127.0.0.1","port": 9091}
     ]
   },
   "SERVER": [

@@ -1,20 +1,5 @@
 #include "ReverseHttpProxy.h"
 
-//if(forwardSocket.Sock() == BAD_FILE_DESCRIPTOR){
-//auto addressJson = Configure::Get()["REVERSE_PROXY"][std::to_string(ntohs(myAddr.sin_port))];
-//if(!addressJson.empty()){
-//std::string ip = addressJson[0]["ip"];
-//short port = addressJson[0]["port"];
-//
-//forwardSocket.Init();
-//if(!forwardSocket.Connect(ip,port)){
-//LOG_ERROR(ProxyBaseChan,"can't connect destination address");
-//return -2;
-//}
-//AddForward();
-//}
-//}
-
 const std::string ReverseHttpProxyChan = "ReverseHttpProxy";
 
 namespace totoro {
@@ -23,7 +8,7 @@ namespace totoro {
         static std::unordered_map<std::string,int> candidateServersConnectionNum;
         static bool isInit = true;
         if(isInit){
-            auto reverseProxyMap = Configure::Get()["REVERSE_PROXY"];
+            auto reverseProxyMap = Configure::Get()["HTTP_REVERSE_PROXY"];
             for(auto items = reverseProxyMap.cbegin(); items != reverseProxyMap.cend(); items++) {
                 std::vector<std::pair<std::string,unsigned short>> servers;
                 for(const auto& item : items.value()){

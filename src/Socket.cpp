@@ -256,7 +256,7 @@ namespace totoro {
             fstat(file,&stat);
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
-            if(send(sock,&writeTotalBytes,SOCKET_BUF_SIZE,0) < 0){
+            if(send(sock,&writeTotalBytes,sizeof(writeTotalBytes),0) < 0){
                 LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
@@ -355,7 +355,11 @@ namespace totoro {
             }
             readCursor = 0;
             readTotalBytes = size;
-            file = open(filePath.c_str(),O_CREAT | O_WRONLY,777);
+            file = open(filePath.c_str(),O_CREAT | O_WRONLY);
+            if(file < 0){
+                LOG_ERROR(SocketChan, strerror(errno));
+                return -1;
+            }
             isNew = false;
         }
         ssize_t hadRecv;
@@ -372,7 +376,10 @@ namespace totoro {
                 file = -1;
                 return -1;
             }
-            write(file,buffer,hadRecv);
+            if(write(file,buffer,hadRecv) != hadRecv){
+                LOG_ERROR(SocketChan,"failed to write");
+                return -1;
+            }
             readCursor += hadRecv;
         }
         isNew = true;
@@ -644,6 +651,10 @@ namespace totoro {
             readCursor = 0;
             readTotalBytes = size;
             file = open(filePath.c_str(),O_CREAT | O_WRONLY);
+            if(file < 0){
+                LOG_ERROR(SocketChan, strerror(errno));
+                return -1;
+            }
             isNew = false;
         }
         ssize_t hadRecv;
@@ -660,7 +671,10 @@ namespace totoro {
                 file = -1;
                 return -1;
             }
-            write(file,buffer,hadRecv);
+            if(write(file,buffer,hadRecv) != hadRecv){
+                LOG_ERROR(SocketChan,"failed to write");
+                return -1;
+            }
             readCursor += hadRecv;
         }
         isNew = true;

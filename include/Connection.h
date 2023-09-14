@@ -62,10 +62,13 @@ namespace totoro {
         bool oneShot                                {true};
         IPFilter* filter                            {nullptr};
         ForwardCandidateMap* forwardCandidateMap    {nullptr};
-
+        // 读事件回调 / Read event callback
         virtual int ReadCallback();
+        // 读事件后回调 / After read event callback
         virtual int AfterReadCallback();
+        // 写事件回调 / Write event callback
         virtual int WriteCallback();
+        // 写事件后回调 / After write event callback
         virtual int AfterWriteCallback();
         int EpollMod(SocketID sock,uint32_t ev) const;
         int EpollAdd(SocketID sock) const;

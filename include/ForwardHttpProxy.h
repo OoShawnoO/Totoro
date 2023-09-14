@@ -5,8 +5,10 @@
 #include "HttpBase.h"
 
 namespace totoro {
-
-    class ForwardHttpProxy : public ProxyBase,public HttpBase {
+    /**
+     * @brief 负责HTTP正向代理事务 / Response HTTP forward proxy transactions
+     */
+    class ForwardHttpProxy : public ProxyBase,public virtual HttpBase {
     public:
         int Init(const ConnectionInitParameter &connectionInitParameter) override;
 
@@ -14,27 +16,16 @@ namespace totoro {
 
     protected:
         int ReadCallback() override;
-
         int AfterReadCallback() override;
-
         int WriteCallback() override;
-
         int AfterWriteCallback() override;
-
         int MainReadCallback() override;
-
         int MainAfterReadCallback() override;
-
         int ForwardReadCallback() override;
-
         int ForwardAfterReadCallback() override;
-
         int ForwardWriteCallback() override;
-
         int ForwardAfterWriteCallback() override;
-
         int MainWriteCallback() override;
-
         int MainAfterWriteCallback() override;
     };
 

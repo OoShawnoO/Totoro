@@ -6,18 +6,17 @@
 #include "core/SSLSocket.h"
 
 namespace totoro {
-
+    /**
+     * @brief @brief 负责HTTPS连接相关事务 / Response HTTPS connection transactions
+     */
     class HttpsBase : public HttpBase,public SSLSocket{
     public:
         int Init(const ConnectionInitParameter &connectionInitParameter) override;
 
     protected:
         int ReadCallback() override;
-
         int AfterReadCallback() override;
-
         int WriteCallback() override;
-
         int AfterWriteCallback() override;
 
     public:

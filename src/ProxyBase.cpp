@@ -2,7 +2,6 @@
 #include "ProxyBase.h"
 static const std::string ProxyBaseChan = "ProxyBase";
 namespace totoro {
-    /* Public Impl */
     int ProxyBase::MainReadCallback() {
         return Connection::ReadCallback();
     }
@@ -41,7 +40,7 @@ namespace totoro {
         RegisterNextEvent(forwardSocket.Sock(),Read,true);
         return Connection::AfterWriteCallback();
     }
-    /* Private Impl */
+
     int ProxyBase::ReadCallback() {
         if(workSock == forwardSocket.Sock()){
             return ForwardReadCallback();
@@ -69,7 +68,6 @@ namespace totoro {
         }
         return MainAfterWriteCallback();
     }
-    /* Connection Public Impl */
 
     int ProxyBase::Close() {
         int proxyFd = forwardSocket.Sock();

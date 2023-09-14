@@ -7,13 +7,51 @@ const std::string SSLContextChan = "SSLContextChan";
 const std::string SSLSocketChan = "SSLSocket";
 namespace totoro {
     /* SSLContext Impl */
-    SSLContext::SSLContext(const std::string& CERT,const std::string& PRIVATE) {
+    SSLContext::SSLContext(const std::string& CA,const std::string& CERT,const std::string& PRIVATE) {
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
         context = SSL_CTX_new(TLS_server_method());
 
+        if(SSL_CTX_load_verify_locations(context, CA.c_str(), nullptr) <=0){
+            LOG_ERROR(SSLContextChan,"load ca failed");
+            exit(-1);
+        }
 
+        if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
+            LOG_ERROR(SSLContextChan,"load public key failed");
+            exit(-1);
+        }
+        if(SSL_CTX_use_PrivateKey_file(context,PRIVATE.c_str(),SSL_FILETYPE_PEM)<=0){
+            LOG_ERROR(SSLContextChan,"load private key failed");
+            exit(-1);
+        }
+
+        if(SSL_CTX_check_private_key(context)<=0) {
+            LOG_ERROR(SSLContextChan,"load private key failed");
+            exit(-1);
+        }
+    }
+
+    SSLContext::~SSLContext() {
+        SSL_CTX_free(context);
+        context = nullptr;
+    }
+
+    SSLContext &SSLSocket::GetContext() {
+        static SSLContext context(Configure::Get()["CA-CERT"],Configure::Get()["SERVER-CERT"],Configure::Get()["SERVER-KEY"]);
+        return context;
+    }
+
+    /* SSL Client Context Impl */
+    SSLClientContext::SSLClientContext(const std::string& CA,const std::string &CERT, const std::string &PRIVATE) {
+        SSL_library_init();
+        OpenSSL_add_all_algorithms();
+        SSL_load_error_strings();
+        context = SSL_CTX_new(TLS_client_method());
+
+        //SSL双向认证
+//        SSL_CTX_set_verify(context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
         if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
             LOG_ERROR(SSLContextChan,"load public key failed");
             exit(-1);
@@ -28,16 +66,15 @@ namespace totoro {
         }
     }
 
-    SSLContext::~SSLContext() {
+    SSLClientContext::~SSLClientContext() {
         SSL_CTX_free(context);
-        context = nullptr;
     }
 
-    /* SSLSocket Impl */
-    SSLContext &SSLSocket::GetContext() {
-        static SSLContext context(Configure::Get()["SERVER-CERT"],Configure::Get()["SERVER-KEY"]);
+    SSLClientContext &SSLSocket::GetClientContext() {
+        static SSLClientContext context(Configure::Get()["CA-CERT"],Configure::Get()["CLIENT-CERT"],Configure::Get()["CLIENT-KEY"]);
         return context;
     }
+    /* SSLSocket Impl */
 
     int SSLSocket::sendImpl(const char *data) {
         size_t hadSend,needSend;
@@ -270,9 +307,11 @@ namespace totoro {
     }
 
     int SSLSocket::Close() {
-        SSL_shutdown(connection);
-        SSL_free(connection);
-        connection = nullptr;
+        if(connection){
+            SSL_shutdown(connection);
+            SSL_free(connection);
+            connection = nullptr;
+        }
         return TCPSocket::Close();
     }
 
@@ -343,5 +382,31 @@ namespace totoro {
             return -1;
         }
         return 1;
+    }
+
+    bool SSLSocket::Connect(const std::string &ip, unsigned short port) {
+
+        if(!TCPSocket::Connect(ip,port)) return false;
+
+        if(!connection){
+            connection = SSL_new(GetClientContext().context);
+            if(!connection){
+                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                return false;
+            }
+            if(SSL_set_fd(connection,sock) <= 0){
+                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                return false;
+            }
+            if(SSL_connect(connection) <= 0){
+                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                return false;
+            }
+            if(SSL_is_init_finished(connection) <= 0){
+                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                return false;
+            }
+        }
+        return true;
     }
 } // totoro

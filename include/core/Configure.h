@@ -7,6 +7,9 @@
 
 namespace totoro {
     using Json = nlohmann::json;
+    /**
+     * @brief 配置文件解析与数据获取 \n Configure file parse and get data
+     */
     class Configure {
         Json conf;
         explicit Configure(const std::string& filePath);
