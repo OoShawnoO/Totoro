@@ -188,12 +188,12 @@ namespace totoro {
             EpollDel(conn->Sock());
             int sock = conn->Sock();
             int ret = conn->Close();
-            connectionPool.release(conn);
-            connectionMap.erase(sock);
             if(ret >= 0) {
                 EpollDel(ret);
                 connectionMap.erase(ret);
             }
+            connectionPool.release(conn);
+            connectionMap.erase(sock);
             currentConnectCount--;
         };
 

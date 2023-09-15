@@ -119,22 +119,43 @@ namespace totoro {
             bool Parse(std::string& requestHeaderData);
             // 获取请求方法 / Get request method
             const HttpMethod& GetMethod() const;
+            // 设置请求方法 / Set request method
+            void SetMethod(HttpMethod method);
             // 获取请求内容类型 / Get request content type
             const HttpContentDataType& GetContentType() const;
+            // 设置请求内容类型 / Set request content type
+            void SetContentType(const std::string& contentType);
             // 获取请求内容长度 / Get request content length
             size_t GetContentLength() const;
+            // 设置请求内容长度 / Set request content length
+            void SetContentLength(size_t size);
             // 获取请求cookies / Get request cookies
             const HttpCookieType& GetCookies() const;
+            // 设置请求cookies / Set reqeust cookies
+            void SetCookie(const std::string& key,const std::string& value);
             // 获取请求HTTP版本 / Get request HTTP version
             const HttpVersion& GetVersion() const;
+            // 设置请求HTTP版本 / Set reqeust HTTP version
+            void SetVersion(HttpVersion version);
             // 获取请求url / Get request url
             const std::string& GetUrl() const;
+            // 设置请求url / Set request url
+            void SetUrl(const std::string& url);
             // 获取请求参数 / Get request parameters
             const HttpParameterType& GetParameters() const;
+            // 设置请求参数 / Set request parameters
+            void SetParameters(const std::string& key,const std::string& value);
             // 获取请求字段 / Get request fields
             const HttpHeaderFieldsType& GetFields() const;
+            // 设置请求字段 / Set request field
+            void SetField(const std::string& key,const std::vector<std::string>& values);
             // 获取多分界数据分界线 / Get request multi-part boundary
             const std::string& GetBoundary() const;
+            // 设置多分界数据分界线 / Set request nulti-part boundary
+            void SetBoundary(const std::string& boundary);
+            // 字符串化 / To string
+            std::string toString();
+            // 清除 / Clear
             void Clear();
         }requestHeader;
         // 请求体信息 / Request Body Information
@@ -152,20 +173,29 @@ namespace totoro {
             bool Parse(const std::string& requestBodyData,const RequestHeader& header);
             // 获取请求体Json数据 / Get request body Json data
             const Json& GetJson() const;
+            // 设置请求体Json数据 / Set request body Json data
+            void SetJson(const Json& json);
             // 获取请求体Form数据 / Get request body Form data
             const HttpFormType& GetForm() const;
+            void SetForm(const HttpFormType& form);
             // 获取请求体Form数据字段 / Get request body Form field data
             std::string GetFormField(const std::string& name);
+            // 设置请求体Form数据字段 / Set request body Form field data
+            void SetFormField(const std::string& key,const std::string& value);
             // 获取请求体文件 / Get request body files
             const HttpMultiPartType& GetFiles() const;
             // 获取请求体文件数据 / Get request body file data
             std::string GetFilesFieldData(const std::string& name);
-            // 获取请求体文件名 / Get request body file name
+            // 设置请求体文件数据 / Set request body file data
+            void SetFilesFieldData(const std::string& name,const HttpMultiPartDetail& detail);
+            // 获取请求体对应name字段文件名数据 / Get request body file data cross name
             std::string GetFilesFieldFileName(const std::string& name);
-            // 获取请求体文件内容 / Get request body file content
+            // 获取请求体对应name字段文件内容 / Get request body file content cross name
             std::string GetFilesFieldContentType(const std::string& name);
             // 下载请求体中文件 / Download files in request body
             bool DownloadFilesField(const std::string& fieldName,const std::string& destFilePath,std::string fileName = "") const;
+            // 字符串化 / To string
+            std::string toString(const RequestHeader& header) const;
             void Clear();
         }requestBody;
         // 响应头信息 / Response Header Information
@@ -177,7 +207,16 @@ namespace totoro {
             HttpStatus status;
             // 响应头字段 / Response Header Fields
             HttpHeaderFieldsType fields;
+            //
         public:
+            // 解析响应头 / Parse response header
+            bool Parse(std::string& responseHeaderData);
+            // 获取请求内容类型 / Get request content type
+            const HttpContentDataType& GetContentType() const;
+            // 获取请求内容长度 / Get request content length
+            size_t GetContentLength() const;
+            // 获取传输编码 / Get transfer encoding
+            std::string GetTransferEncoding() const;
             // 设置HTTP版本 / Set HTTP version
             void SetVersion(HttpVersion version);
             // 设置状态码 / Set Status

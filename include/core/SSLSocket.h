@@ -26,7 +26,7 @@ namespace totoro {
     /**
      * @brief 负责SSL事务相关连接 \n Response SSL connection transactions
      */
-    class SSLSocket : virtual public TCPSocket{
+    class SSLSocket : public virtual TCPSocket{
 
         static SSLContext& GetContext();
         static SSLClientContext& GetClientContext();

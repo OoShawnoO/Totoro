@@ -14,6 +14,9 @@ namespace totoro {
         int Init(const ConnectionInitParameter &connectionInitParameter) override;
 
     protected:
+        bool SendResponseHeader() override;
+        bool SendResponseBody() override;
+
         int ReadCallback() override;
         int AfterReadCallback() override;
         int WriteCallback() override;

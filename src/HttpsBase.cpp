@@ -36,4 +36,36 @@ namespace totoro {
     int HttpsBase::AfterWriteCallback() {
         return HttpBase::AfterWriteCallback();
     }
+
+    bool HttpsBase::SendResponseHeader() {
+        std::string headerText = responseHeader.toString();
+        int ret = SSLSocket::SendAll(headerText);
+        if(ret == -1) return false;
+        else if(ret == 0){
+            while((ret =SSLSocket::SendAll(headerText)) == 0){}
+            if(ret == -1) return false;
+        }
+        return true;
+    }
+
+    bool HttpsBase::SendResponseBody() {
+        if(!responseBody.GetResourcePath().empty()){
+            int ret = SSLSocket::SendFile(responseBody.GetResourcePath());
+            if(ret == -1) return false;
+            else if(ret == 0){
+                while((ret = SSLSocket::SendFile(responseBody.GetResourcePath())) == 0){}
+                if(ret == -1) return false;
+            }
+        }
+        else
+        {
+            int ret = SSLSocket::SendAll(responseBody.GetData());
+            if(ret == -1) return false;
+            else if(ret == 0){
+                while((ret =SSLSocket::SendAll(responseBody.GetData())) == 0){}
+                if(ret == -1) return false;
+            }
+        }
+        return true;
+    }
 } // totoro

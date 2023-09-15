@@ -52,6 +52,9 @@ namespace totoro {
 
         //SSL双向认证
 //        SSL_CTX_set_verify(context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+        SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+        SSL_CTX_set_min_proto_version(context, TLS1_1_VERSION);
+
         if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
             LOG_ERROR(SSLContextChan,"load public key failed");
             exit(-1);
@@ -162,7 +165,7 @@ namespace totoro {
             fstat(file,&stat);
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
-            if(SSL_write(connection,&writeTotalBytes,SOCKET_BUF_SIZE) <= 0){
+            if(SSL_write(connection,&writeTotalBytes,sizeof(writeTotalBytes)) <= 0){
                 LOG_ERROR(SSLSocketChan, strerror(errno));
                 return -1;
             }

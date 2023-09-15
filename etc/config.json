@@ -28,8 +28,8 @@
   },
   "SERVER": [
     {
-      "ip": "0.0.0.0",
-      "port": 8080,
+      "ip": "127.0.0.1",
+      "port": 9999,
       "reactorNum": 1,
       "epollTimeout": -1,
       "allow":[],
@@ -39,7 +39,7 @@
       "noneBlock": false
     },
     {
-      "ip": "0.0.0.0",
+      "ip": "127.0.0.1",
       "port": 8888,
       "reactorNum": 1,
       "epollTimeout": -1,

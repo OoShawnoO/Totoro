@@ -206,7 +206,7 @@ namespace totoro {
             if(::send(sock,&h,TCP_HEADER_SIZE,0) <= 0) return -1;
             isNew = false;
         }
-        return sendImpl(data);
+        return TCPSocket::sendImpl(data);
     }
 
     int TCPSocket::SendWithHeader(const std::string &data) {
@@ -224,7 +224,7 @@ namespace totoro {
             if(writeTotalBytes <= 1) return -1;
             isNew = false;
         }
-        return sendImpl(data.c_str());
+        return TCPSocket::sendImpl(data.c_str());
     }
 
     int TCPSocket::Send(const char *data, size_t size) {
@@ -234,7 +234,7 @@ namespace totoro {
             if(writeTotalBytes <= 1) return -1;
             isNew = false;
         }
-        return sendImpl(data);
+        return TCPSocket::sendImpl(data);
     }
 
     int TCPSocket::Send(const std::string &data, size_t size) {
@@ -326,7 +326,7 @@ namespace totoro {
             readCursor = 0;
             isNew = false;
         }
-        return recvImpl(data);
+        return TCPSocket::recvImpl(data);
     }
 
     int TCPSocket::Recv(std::string &data, size_t size) {
@@ -336,14 +336,14 @@ namespace totoro {
             readCursor = 0;
             isNew = false;
         }
-        return recvImpl(data);
+        return TCPSocket::recvImpl(data);
     }
 
     bool TCPSocket::RecvAll(std::string &data) {
         readTotalBytes = SIZE_MAX;
         readCursor = 0;
         data.clear();
-        return recvImpl(data) == 0;
+        return TCPSocket::recvImpl(data) == 0;
     }
 
     int TCPSocket::RecvFileWithHeader(const std::string &filePath) {
@@ -530,7 +530,7 @@ namespace totoro {
             if(writeTotalBytes <= 1) return -1;
             isNew = false;
         }
-        return sendImpl(data.c_str());
+        return UDPSocket::sendImpl(data.c_str());
     }
 
     int UDPSocket::Send(const std::string &data, size_t size) {
@@ -548,7 +548,7 @@ namespace totoro {
             if(writeTotalBytes < 1) return -1;
             isNew = false;
         }
-        return sendImpl(data);
+        return UDPSocket::sendImpl(data);
     }
 
     int UDPSocket::SendFileWithHeader(const std::string &filePath) {
@@ -627,7 +627,7 @@ namespace totoro {
             if(readTotalBytes < 1) return -1;
             isNew = false;
         }
-        return recvImpl(data);
+        return UDPSocket::recvImpl(data);
     }
 
     bool UDPSocket::RecvAll(std::string &data) {
@@ -638,7 +638,7 @@ namespace totoro {
             if(readTotalBytes < 1) return -1;
             isNew = false;
         }
-        return recvImpl(data) == 0;
+        return UDPSocket::recvImpl(data) == 0;
     }
 
     int UDPSocket::RecvFileWithHeader(const std::string &filePath) {

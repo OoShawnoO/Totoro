@@ -8,10 +8,12 @@ aux_source_directory(src SRC)
 aux_source_directory(include INCLUDE)
 include_directories(include)
 link_directories(lib)
-# 依赖fmt
-include(thirdparty/fmt.cmake)
 
-add_executable(${TARGET} main.cpp ${SRC} ${INCLUDE} test/Test.h
-)
+# 依赖fmt
+if(NOT ${TRAGET} fmt)
+include(thirdparty/fmt.cmake)
+endif()
+
+add_executable(${TARGET} main.cpp ${SRC} ${INCLUDE} test/Test.h)
 
 target_link_libraries(${TARGET} pthread fmt::fmt ssl crypto)

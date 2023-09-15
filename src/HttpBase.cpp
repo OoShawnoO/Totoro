@@ -218,7 +218,7 @@ namespace totoro {
                                               "    </style>\n"
                                               "</head>\n";
     /* endregion */
-    static const std::regex RequestLineRegex("^(.*) (.*) (.*)$");
+    static const std::regex RequestLineRegex("^(.*)\\s(.*)\\s(.*)$");
     static const std::regex RequestParameterRegex("([^&]+)=([^&]*)&?");
     static const std::regex RequestFieldRegex("^(.*):\\s?(.*);?$");
 
@@ -474,6 +474,47 @@ namespace totoro {
 
     const HttpMethod &HttpBase::RequestHeader::GetMethod() const { return method; }
 
+    void HttpBase::RequestHeader::SetMethod(HttpMethod _method) { method = _method; }
+
+    void HttpBase::RequestHeader::SetContentType(const std::string &contentType) { fields["Content-Type"] = {contentType}; }
+
+    void HttpBase::RequestHeader::SetContentLength(size_t size) { fields["Content-Length"] = {std::to_string(size)}; }
+
+    void HttpBase::RequestHeader::SetCookie(const std::string &key, const std::string &value) {
+        fields["Cookies"].emplace_back(fmt::format("{}={};",key,value));
+    }
+
+    void HttpBase::RequestHeader::SetVersion(HttpVersion _version) { version = _version; }
+
+    void HttpBase::RequestHeader::SetUrl(const std::string &_url) { url = _url; }
+
+    void HttpBase::RequestHeader::SetParameters(const std::string &key, const std::string &value) { parameters.insert({key,value}); }
+
+    void HttpBase::RequestHeader::SetField(const std::string &key, const std::vector<std::string> &values) { fields[key] = values; }
+
+    void HttpBase::RequestHeader::SetBoundary(const std::string &_boundary) { boundary = _boundary; }
+
+    std::string HttpBase::RequestHeader::toString() {
+        std::string requestHeaderData;
+        if(!parameters.empty()){
+            bool isFirst = true;
+            for(const auto& parameter : parameters) {
+                if(isFirst) { isFirst = false; url += '?'; }
+                else url += '&';
+                url += fmt::format("{}={}",parameter.first,parameter.second);
+            }
+        }
+        if(!boundary.empty()) {
+            fields["Content-Type"].emplace_back("boundary=" + boundary);
+        }
+        requestHeaderData += fmt::format("{} {} {}\r\n",HttpMethodMap.at(method),url,HttpVersionMap.at(version));
+        for(const auto& field : fields) {
+            requestHeaderData += fmt::format("{}:{}\r\n",field.first,fmt::join(field.second.begin(),field.second.end(),","));
+        }
+        requestHeaderData += "\r\n";
+        return requestHeaderData;
+    }
+
     /* RequestBody Impl */
     void HttpBase::RequestBody::Clear() {
         files.clear();
@@ -491,7 +532,7 @@ namespace totoro {
         std::string name;
 
         const std::string& type = header.GetContentType();
-        if(type == "multipart/files-data"){
+        if(type == "multipart/form-data"){
             const std::string& boundary = header.GetBoundary();
             const std::string another = "--" + boundary;
             const std::string end = "--" + boundary + "--";
@@ -605,7 +646,98 @@ namespace totoro {
         return it->second;
     }
 
+    void HttpBase::RequestBody::SetJson(const Json &_json) { json = _json; }
+
+    void HttpBase::RequestBody::SetForm(const HttpFormType &_form) { form = _form; }
+
+    void HttpBase::RequestBody::SetFormField(const std::string &key, const std::string &value) { form[key] = value; }
+
+    void HttpBase::RequestBody::SetFilesFieldData(const std::string &name, const HttpMultiPartDetail &detail) { files[name] = detail; }
+
+    std::string HttpBase::RequestBody::toString(const RequestHeader& header) const {
+        std::string requestBodyData;
+        const auto& CT = header.GetContentType();
+        if(CT == "multipart/form-data"){
+            const std::string& boundary = header.GetBoundary();
+            std::string another = "--" + boundary;
+            std::string end = "--" + boundary + "--";
+            for(const auto& file : files){
+                requestBodyData += another;
+                requestBodyData += fmt::format("Content-Disposition:name={};",file.first);
+                if(!file.second.fileName.empty()) requestBodyData += "filename=" + file.second.fileName;
+                requestBodyData += "\r\n";
+                if(!file.second.contentType.empty()){
+                    requestBodyData += "Content-Type:" + file.second.contentType + "\r\n";
+                }
+                requestBodyData += "\r\n";
+                requestBodyData += file.second.data;
+            }
+            requestBodyData += end + "\r\n";
+        }else if(CT == "application/x-www-form-urlencoded"){
+            bool isFirst = true;
+            for(const auto& formItem : form) {
+                if(isFirst) { isFirst = false;}
+                else requestBodyData += '&';
+                requestBodyData += fmt::format("{}={}",formItem.first,formItem.second);
+            }
+            requestBodyData += "\r\n";
+        }else if(CT == "application/json"){
+            requestBodyData += nlohmann::to_string(json);
+            requestBodyData += "\r\n";
+        }
+        return requestBodyData;
+    }
+    /*
+     * "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Encoding: gzip\r\nContent-Security-Policy: frame-ancestors 'self' https://chat.baidu.com http://mirror-chat.baidu.com https://fj-chat.baidu.com https://hba-chat.baidu.com https://hbe-chat.baidu.com https://njjs-chat.baidu.com https://nj-chat.baidu.com https://hna-chat.baidu.com https://hnb-chat.baidu.com http://debug.baidu-int.com;\r\nContent-Type: text/html; charset=utf-8\r\nDate: Fri, 15 Sep 2023 07:01:10 GMT\r\nServer: BWS/1.1\r\nTraceid: 1694761270237424871414672100593762323040\r\nX-Ua-Compatible: IE=Edge,chrome=1\r\nTransfer-Encoding: chunked\r\n\r\ndaa\r\n\037\213\b\000\000\000\000\000\000\003\324\\{\217\033\327u\377\177?ŘD\260R:\303\345\360\265\\R\253T\221-\304(\202\024\260\003$\200\001b\036wȁ\206\034ff\270\017\021\v\330I]'m\355\3040\222\242\265\2216\001R\264@k;\250\333\030vl\177\230hW\322_\375\n=\347\334{g\356\235\031\356R+\365\021ђw\207\367y\356y\376ιs\353\205\027\277s\367\325\357\377\371K\306,\233G\267o\275`Y\257\274z\347\325\357\276b|\347\317,\353\366-\376t\306\034\377\366\2559\313\034h\226--\366\203Uxtظ\033/2\266ȬWO\227\254ax\374\267\303F\306N\262=\3548\366fN\222\262\354p\225\005ְQ3\302\367\254\357ޱ\356\306\363\245\223\205n\244\016\362\362K\207̟2ӛ%\361\234\035ڲw>\213\023\035;\247i\303X8\360u#a\001K\022\226\310f\374i6csfyq\024'\312\372\232\001\375ћ\372,\365\222p\231\205\361Biz\376\346??\372ُ\236\374\372/\317\337\374\361\243\277\377\213\207\237\376\333\305/\336\272\370\331\a\217>\371\365\371\357\177~\361\336;\177x\375\215\307o}r\376W\357?\374\354\235\307\037\376ˣ/\336\275\370\370\335\213\367?y\370\345W\027o\377\356\374\203\217\037\277\363\273\363\237\376\342\341W\277\272x\343\243\377\372\375\337\\\374\344\313\363\037\177|\361\223\327/~\373\303?\274\376\303G\177\367\345\371g\377\364\370?\337|\374\325[\347o\377\350\341g_\345\263\300PO~\365\037\027?\377\370\342\355\017\317?{\017\372\236\377\364\243\207\237\377\346\321/\377\365\311\337~\302\307y\364\376\247\347o\376;t\341Kz\364\371{\027\277\374\000\206\205\255E\341⾑\260谑\316\342$\363V\231\021\002\355\032\306\fHu\330\300cLG{{\307\307\307-\327\t\375Uˋ\347{\201s\204\215Z\360O\303\310\340T\017\033\341ܙ\262\275\023\213w\336\323\006fN\342\315dCg\271\214B\017\3161^\354\305K\266H\351[\205\254\177r2\217\344\364", <incomplete sequence \342>
+     */
     /* ResponseHeader Impl */
+    bool HttpBase::ResponseHeader::Parse(std::string &responseHeaderData) {
+        if(responseHeaderData.empty()) {
+            LOG_ERROR(HttpBaseChan,"request header empty");
+            return false;
+        }
+        std::stringstream stream(responseHeaderData);
+        std::string line;
+
+        if(!getLine(stream,line)) {
+            LOG_ERROR(HttpBaseChan,"request header content can't get line");
+            return false;
+        }
+
+        std::cmatch matches;
+        if(!std::regex_match(line.c_str(), matches, RequestLineRegex)){
+            LOG_ERROR(HttpBaseChan,"match first line failed");
+            return false;
+        }
+        try{
+            status = (HttpStatus)stoi(matches[2]);
+            version = ReverseHttpVersionMap.at(matches[1]);
+        }catch(...){
+            LOG_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
+            return false;
+        }
+
+        while(getLine(stream,line)){
+            if(line.empty()) break;
+            auto splitPos = line.find(':');
+            if(splitPos == std::string::npos){
+                LOG_ERROR(HttpBaseChan,"field has no :");
+                return false;
+            }
+            std::stringstream fieldStream(line.substr(splitPos + 1));
+            auto& field = fields[line.substr(0,splitPos)];
+            while(std::getline(fieldStream,line,',')) {
+                line.erase(line.begin(),std::find_if_not(line.begin(),line.end(),::isspace));
+                field.emplace_back(std::move(line));
+            }
+        }
+
+        getline(stream,responseHeaderData,'\r');
+
+        return true;
+    }
+
+
     std::string HttpBase::ResponseHeader::toString() {
         std::string responseBodyText = fmt::format("{} {} {}\r\n",
                                                    HttpVersionMap.at(version),
@@ -658,6 +790,22 @@ namespace totoro {
     void HttpBase::ResponseHeader::SetField(const std::string &fieldKey,
                                             const std::vector<std::string> &fieldValues) {
         fields[fieldKey] = fieldValues;
+    }
+
+    const HttpContentDataType &HttpBase::ResponseHeader::GetContentType() const {
+        return fields.find("Content-Type")->second[0];
+    }
+
+    size_t HttpBase::ResponseHeader::GetContentLength() const {
+        auto field = fields.begin();
+        if((field = fields.find("Content-Length")) == fields.end()) return 0;
+        return stoll(field->second[0]);
+    }
+
+    std::string HttpBase::ResponseHeader::GetTransferEncoding() const {
+        auto field = fields.begin();
+        if((field = fields.find("Transfer-Encoding")) == fields.end()) return {};
+        return field->second[0];
     }
 
     /* ResponseBody Impl */
