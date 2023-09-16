@@ -97,6 +97,7 @@ namespace totoro {
                     isNew = true;
                     return 0;
                 }
+                LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
             data.append(buffer,hadRecv);
@@ -122,6 +123,10 @@ namespace totoro {
         int reuse = 1;
         if(setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(reuse)) < 0){
             LOG_ERROR(SocketChan, strerror(errno));
+            return false;
+        }
+        if(setsockopt(sock,SOL_SOCKET,SO_REUSEPORT,&reuse,sizeof(reuse)) < 0){
+            LOG_ERROR(SocketChan,strerror(errno));
             return false;
         }
 
@@ -156,6 +161,8 @@ namespace totoro {
     }
 
      bool TCPSocket::Accept(TCPSocket& tcpSocket) {
+        tcpSocket.sock = BAD_FILE_DESCRIPTOR;
+        bzero(&tcpSocket.destAddr,sizeof(tcpSocket.destAddr));
         tcpSocket.destAddrLen = sizeof(tcpSocket.destAddr);
         if((tcpSocket.sock = accept(sock,(sockaddr*)&tcpSocket.destAddr,&tcpSocket.destAddrLen)) < 0){
             LOG_ERROR(SocketChan, strerror(errno));

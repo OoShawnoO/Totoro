@@ -14,26 +14,26 @@ namespace totoro {
         return 1;
     }
 
-    int HttpsBase::ReadCallback() {
+    Connection::CallbackReturnType HttpsBase::ReadCallback() {
         if(!connection) {
             if(InitSSL() < 0){
-                return -1;
+                return FAILED;
             }
         }
-        if(!SSLSocket::RecvAll(data)) return -1;
-        if(!requestHeader.Parse(data)) return -1;
-        return 1;
+        if(!SSLSocket::RecvAll(data)) return FAILED;
+        if(!requestHeader.Parse(data)) return FAILED;
+        return SUCCESS;
     }
 
-    int HttpsBase::AfterReadCallback() {
+    Connection::CallbackReturnType HttpsBase::AfterReadCallback() {
         return HttpBase::AfterReadCallback();
     }
 
-    int HttpsBase::WriteCallback() {
+    Connection::CallbackReturnType HttpsBase::WriteCallback() {
         return HttpBase::WriteCallback();
     }
 
-    int HttpsBase::AfterWriteCallback() {
+    Connection::CallbackReturnType HttpsBase::AfterWriteCallback() {
         return HttpBase::AfterWriteCallback();
     }
 

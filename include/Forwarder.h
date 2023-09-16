@@ -10,31 +10,39 @@ namespace totoro {
 
     class Forwarder{
     protected:
-        virtual int WakeClient() = 0;
+        virtual int InitForwarder(const std::string& ip,unsigned port) = 0;
+        virtual Connection::CallbackReturnType ForwarderReadCallback() = 0;
+        virtual Connection::CallbackReturnType ForwarderAfterReadCallback() = 0;
+        virtual Connection::CallbackReturnType ForwarderWriteCallback() = 0;
+        virtual Connection::CallbackReturnType ForwarderAfterWriteCallback() = 0;
     };
 
     class HttpForwarder : public HttpBase,public Forwarder {
-        HttpBase& client;
-        int WakeClient() override;
+        HttpBase forwarder;
     protected:
-        int ReadCallback() override;
-        int AfterReadCallback() override;
-        int WriteCallback() override;
-        int AfterWriteCallback() override;
-    public:
-        HttpForwarder(HttpBase& client);
+        int InitForwarder(const std::string &ip, unsigned int port) override;
+        CallbackReturnType ForwarderReadCallback() override;
+        CallbackReturnType ForwarderAfterReadCallback() override;
+        CallbackReturnType ForwarderWriteCallback() override;
+        CallbackReturnType ForwarderAfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
     };
 
     class HttpsForwarder : public HttpsBase,public Forwarder {
-        HttpsBase& client;
-        int WakeClient() override;
+        HttpsBase forwarder;
     protected:
-        int ReadCallback() override;
-        int AfterReadCallback() override;
-        int WriteCallback() override;
-        int AfterWriteCallback() override;
-    public:
-        HttpsForwarder(HttpsBase& client);
+        int InitForwarder(const std::string &ip, unsigned int port) override;
+        CallbackReturnType ForwarderReadCallback() override;
+        CallbackReturnType ForwarderAfterReadCallback() override;
+        CallbackReturnType ForwarderWriteCallback() override;
+        CallbackReturnType ForwarderAfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
     };
 
 } // totoro

@@ -229,31 +229,31 @@ namespace totoro {
     };
 
 
-    int HttpBase::ReadCallback() {
-        if(!TCPSocket::RecvAll(data)) return -1;
-        if(!requestHeader.Parse(data)) return -1;
-        return 1;
+    Connection:: CallbackReturnType HttpBase::ReadCallback() {
+        if(!TCPSocket::RecvAll(data)) { LOG_ERROR(HttpBaseChan,"failed to recv all"); return FAILED; }
+        if(!requestHeader.Parse(data)) { LOG_ERROR(HttpBaseChan,"failed to parse data"); return FAILED; }
+        return SUCCESS;
     }
 
-    int HttpBase::AfterReadCallback() {
+    Connection::CallbackReturnType HttpBase::AfterReadCallback() {
         if(requestHeader.GetMethod() != POST
         && requestHeader.GetMethod() != PATCH
-        && requestHeader.GetMethod() != PUT) return 1;
+        && requestHeader.GetMethod() != PUT) return SUCCESS;
 
         if(requestHeader.GetContentLength() > data.size()){
             std::string temp;
             if(TCPSocket::Recv(temp,requestHeader.GetContentLength() - data.size()) < 0){
-                return -1;
+                return FAILED;
             }else if(temp.size() != requestHeader.GetContentLength() - data.size()){
-                return 0;
+                return AGAIN;
             }
             data += temp;
         }
-        if(!requestBody.Parse(data,requestHeader)) return -1;
-        return 1;
+        if(!requestBody.Parse(data,requestHeader)) return FAILED;
+        return SUCCESS;
     }
 
-    int HttpBase::WriteCallback() {
+    Connection::CallbackReturnType HttpBase::WriteCallback() {
         bool ret;
         switch(requestHeader.GetMethod()){
             case GET: {
@@ -293,17 +293,20 @@ namespace totoro {
                 break;
             }
         }
-        return ret ? 1 : -1;
+        return ret ? SUCCESS : FAILED;
     }
 
-    int HttpBase::AfterWriteCallback() {
-        if(!SendResponseHeader()) { LOG_ERROR(HttpBaseChan,"send response header failed");return -1; }
-        if(!SendResponseBody()) { LOG_ERROR(HttpBaseChan,"send response body failed");return -1; }
+    Connection::CallbackReturnType HttpBase::AfterWriteCallback() {
+        if(!SendResponseHeader()) { LOG_ERROR(HttpBaseChan,"send response header failed");return FAILED; }
+        if(!SendResponseBody()) { LOG_ERROR(HttpBaseChan,"send response body failed");return FAILED; }
+        if(requestHeader.GetVersion() == HttpVersion::HTTP10){
+            return SHUTDOWN;
+        }
         requestHeader.Clear();
         requestBody.Clear();
         responseHeader.Clear();
         responseBody.Clear();
-        return Connection::AfterWriteCallback();;
+        return SUCCESS;
     }
 
     bool HttpBase::SendResponseHeader() {
@@ -688,7 +691,19 @@ namespace totoro {
         return requestBodyData;
     }
     /*
-     * "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Encoding: gzip\r\nContent-Security-Policy: frame-ancestors 'self' https://chat.baidu.com http://mirror-chat.baidu.com https://fj-chat.baidu.com https://hba-chat.baidu.com https://hbe-chat.baidu.com https://njjs-chat.baidu.com https://nj-chat.baidu.com https://hna-chat.baidu.com https://hnb-chat.baidu.com http://debug.baidu-int.com;\r\nContent-Type: text/html; charset=utf-8\r\nDate: Fri, 15 Sep 2023 07:01:10 GMT\r\nServer: BWS/1.1\r\nTraceid: 1694761270237424871414672100593762323040\r\nX-Ua-Compatible: IE=Edge,chrome=1\r\nTransfer-Encoding: chunked\r\n\r\ndaa\r\n\037\213\b\000\000\000\000\000\000\003\324\\{\217\033\327u\377\177?ŘD\260R:\303\345\360\265\\R\253T\221-\304(\202\024\260\003$\200\001b\036wȁ\206\034ff\270\017\021\v\330I]'m\355\3040\222\242\265\2216\001R\264@k;\250\333\030vl\177\230hW\322_\375\n=\347\334{g\356\235\031\356R+\365\021ђw\207\367y\356y\376ιs\353\205\027\277s\367\325\357\377\371K\306,\233G\267o\275`Y\257\274z\347\325\357\276b|\347\317,\353\366-\376t\306\034\377\366\2559\313\034h\226--\366\203Uxtظ\033/2\266ȬWO\227\254ax\374\267\303F\306N\262=\3548\366fN\222\262\354p\225\005ְQ3\302\367\254\357ޱ\356\306\363\245\223\205n\244\016\362\362K\207̟2ӛ%\361\234\035ڲw>\213\023\035;\247i\303X8\360u#a\001K\022\226\310f\374i6csfyq\024'\312\372\232\001\375ћ\372,\365\222p\231\205\361Biz\376\346??\372ُ\236\374\372/\317\337\374\361\243\277\377\213\207\237\376\333\305/\336\272\370\331\a\217>\371\365\371\357\177~\361\336;\177x\375\215\307o}r\376W\357?\374\354\235\307\037\376ˣ/\336\275\370\370\335\213\367?y\370\345W\027o\377\356\374\203\217\037\277\363\273\363\237\376\342\341W\277\272x\343\243\377\372\375\337\\\374\344\313\363\037\177|\361\223\327/~\373\303?\274\376\303G\177\367\345\371g\377\364\370?\337|\374\325[\347o\377\350\341g_\345\263\300PO~\365\037\027?\377\370\342\355\017\317?{\017\372\236\377\364\243\207\237\377\346\321/\377\365\311\337~\302\307y\364\376\247\347o\376;t\341Kz\364\371{\027\277\374\000\206\205\255E\341⾑\260谑\316\342$\363V\231\021\002\355\032\306\fHu\330\300cLG{{\307\307\307-\327\t\375Uˋ\347{\201s\204\215Z\360O\303\310\340T\017\033\341ܙ\262\275\023\213w\336\323\006fN\342\315dCg\271\214B\017\3161^\354\305K\266H\351[\205\254\177r2\217\344\364", <incomplete sequence \342>
+     * "HTTP/1.1 200 OK\r\n
+     * Connection: keep-alive\r\n
+     * Content-Encoding: gzip\r\n
+     * Content-Security-Policy: frame-ancestors 'self' https://chat.baidu.com http://mirror-chat.baidu.com https://fj-chat.baidu.com https://hba-chat.baidu.com https://hbe-chat.baidu.com https://njjs-chat.baidu.com https://nj-chat.baidu.com https://hna-chat.baidu.com https://hnb-chat.baidu.com http://debug.baidu-int.com;\r\n
+     * Content-Type: text/html; charset=utf-8\r\n
+     * Date: Fri, 15 Sep 2023 07:01:10 GMT\r\n
+     * Server: BWS/1.1\r\n
+     * Traceid: 1694761270237424871414672100593762323040\r\n
+     * X-Ua-Compatible: IE=Edge,chrome=1\r\n
+     * Transfer-Encoding: chunked\r\n
+     * \r\n
+     * daa\r\n\
+     * 037\213\b\000\000\000\000\000\000\003\324\\{\217\033\327u\377\177?ŘD\260R:\303\345\360\265\\R\253T\221-\304(\202\024\260\003$\200\001b\036wȁ\206\034ff\270\017\021\v\330I]'m\355\3040\222\242\265\2216\001R\264@k;\250\333\030vl\177\230hW\322_\375\n=\347\334{g\356\235\031\356R+\365\021ђw\207\367y\356y\376ιs\353\205\027\277s\367\325\357\377\371K\306,\233G\267o\275`Y\257\274z\347\325\357\276b|\347\317,\353\366-\376t\306\034\377\366\2559\313\034h\226--\366\203Uxtظ\033/2\266ȬWO\227\254ax\374\267\303F\306N\262=\3548\366fN\222\262\354p\225\005ְQ3\302\367\254\357ޱ\356\306\363\245\223\205n\244\016\362\362K\207̟2ӛ%\361\234\035ڲw>\213\023\035;\247i\303X8\360u#a\001K\022\226\310f\374i6csfyq\024'\312\372\232\001\375ћ\372,\365\222p\231\205\361Biz\376\346??\372ُ\236\374\372/\317\337\374\361\243\277\377\213\207\237\376\333\305/\336\272\370\331\a\217>\371\365\371\357\177~\361\336;\177x\375\215\307o}r\376W\357?\374\354\235\307\037\376ˣ/\336\275\370\370\335\213\367?y\370\345W\027o\377\356\374\203\217\037\277\363\273\363\237\376\342\341W\277\272x\343\243\377\372\375\337\\\374\344\313\363\037\177|\361\223\327/~\373\303?\274\376\303G\177\367\345\371g\377\364\370?\337|\374\325[\347o\377\350\341g_\345\263\300PO~\365\037\027?\377\370\342\355\017\317?{\017\372\236\377\364\243\207\237\377\346\321/\377\365\311\337~\302\307y\364\376\247\347o\376;t\341Kz\364\371{\027\277\374\000\206\205\255E\341⾑\260谑\316\342$\363V\231\021\002\355\032\306\fHu\330\300cLG{{\307\307\307-\327\t\375Uˋ\347{\201s\204\215Z\360O\303\310\340T\017\033\341ܙ\262\275\023\213w\336\323\006fN\342\315dCg\271\214B\017\3161^\354\305K\266H\351[\205\254\177r2\217\344\364", <incomplete sequence \342>
      */
     /* ResponseHeader Impl */
     bool HttpBase::ResponseHeader::Parse(std::string &responseHeaderData) {
@@ -731,8 +746,8 @@ namespace totoro {
                 field.emplace_back(std::move(line));
             }
         }
-
-        getline(stream,responseHeaderData,'\r');
+        auto pos = static_cast<size_t>(stream.tellg());
+        responseHeaderData.erase(responseHeaderData.begin(),responseHeaderData.begin() + pos);
 
         return true;
     }

@@ -88,10 +88,10 @@ namespace totoro {
 
     class HttpBase : public virtual Connection {
     protected:
-        int ReadCallback() override;
-        int AfterReadCallback() override;
-        int WriteCallback() override;
-        int AfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
         virtual void RenderStatus(HttpStatus status);
         virtual bool SendResponseHeader();
         virtual bool SendResponseBody();

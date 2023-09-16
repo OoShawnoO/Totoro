@@ -17,10 +17,10 @@ namespace totoro {
         bool SendResponseHeader() override;
         bool SendResponseBody() override;
 
-        int ReadCallback() override;
-        int AfterReadCallback() override;
-        int WriteCallback() override;
-        int AfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
 
     public:
         int Close() override;

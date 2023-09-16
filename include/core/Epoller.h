@@ -16,10 +16,8 @@ namespace totoro {
     template<class T = Connection>
     class Epoller {
         using ConnectionMap = std::unordered_map<SocketID ,std::shared_ptr<T>>;
-        using AddressCandidateMap = std::unordered_map<SocketID ,std::pair<sockaddr_in,sockaddr_in>>;
         using ConnectionMapIterator = typename ConnectionMap::iterator;
         using ForwardCandidateMapIterator = typename ForwardCandidateMap::iterator;
-        using AddressCandidateMapIterator = typename AddressCandidateMap::iterator;
         using InsertConnectionMapResult = std::pair<ConnectionMapIterator,bool>;
 
         EpollID id                                                      {BAD_FILE_DESCRIPTOR};
@@ -34,9 +32,8 @@ namespace totoro {
         std::atomic<int> currentConnectCount                            {0};
         ConnectionInitParameter connectionInitParameter                 {};
         ConnectionMap connectionMap                                     {};
-        AddressCandidateMap candidateMap                                {};
         ForwardCandidateMap forwardCandidateMap                         {};
-
+        Channel<SocketID> closeChan                                     {};
 
         void NoneBlock(SocketID socketId) {
             int option = fcntl(socketId,F_GETFL);
@@ -82,27 +79,36 @@ namespace totoro {
                 }
 
                 std::shared_ptr<T> conn;
-                AddressCandidateMapIterator iter;
+                sockaddr_in myAddr{},destAddr{};
+                socklen_t addrLen = sizeof(myAddr);
+
                 if(!connectionPool.acquire(conn)){
                     close(cur);
                     LOG_ERROR(EpollerChan,"connection pool acquire failed");
                     return false;
                 }
-                if((iter = candidateMap.find(cur)) == candidateMap.end()){
+
+                if(getsockname(cur,(sockaddr*)&myAddr,&addrLen) < 0){
                     close(cur);
-                    LOG_ERROR(EpollerChan,"not found candidate addr");
+                    LOG_ERROR(EpollerChan,"can't get sock my address");
                     return false;
                 }
+                if(getpeername(cur,(sockaddr*)&destAddr,&addrLen) < 0){
+                    close(cur);
+                    LOG_ERROR(EpollerChan,"can't get sock dest address");
+                    return false;
+                }
+
                 connectionInitParameter.sock = cur;
-                connectionInitParameter.myAddr = iter->second.first;
-                connectionInitParameter.destAddr = iter->second.second;
+                connectionInitParameter.myAddr = myAddr;
+                connectionInitParameter.destAddr = destAddr;
                 int ret = conn->Init(connectionInitParameter);
                 if(ret < 0){
                     conn->Close();
                     connectionPool.release(conn);
                     return false;
                 }
-                candidateMap.erase(iter);
+
                 InsertConnectionMapResult result;
 
                 result = connectionMap.insert({cur,conn});
@@ -114,13 +120,13 @@ namespace totoro {
                 }
                 currentConnectCount++;
                 mapIterator = result.first;
+                LOG_TRACE(EpollerChan,std::to_string(cur) + " new connection added");
             }
             return true;
         }
 
         void poll(int timeOut){
             int ret,index,cur;
-            TCPSocket tcpSocket{};
             ConnectionMapIterator mapIterator;
 
             connectionInitParameter.epollId = id;
@@ -128,12 +134,26 @@ namespace totoro {
             connectionInitParameter.oneShot = oneShot;
             connectionInitParameter.edgeTriggle = edgeTriggle;
             connectionInitParameter.forwardCandidateMap = &forwardCandidateMap;
+//            connectionInitParameter.closeChan = &closeChan;
 
             while(!isStop){
                 if((ret = epoll_wait(id,events,4096,timeOut)) < 0){
                     if(errno == EINTR) continue;
                     LOG_ERROR(EpollerChan,"epoll wait failed");
                     exit(-1);
+                }
+
+                while(!closeChan.empty()){
+                    SocketID sock;
+                    if(!closeChan.pop(sock)){
+                        LOG_ERROR(EpollerChan,"close channel pop error");
+                        continue;
+                    }
+                    if((mapIterator = connectionMap.find(sock)) == connectionMap.end()){
+                        LOG_ERROR(EpollerChan,"sock not found in connection map");
+                        continue;
+                    }
+                    DelConnection(mapIterator->second);
                 }
 
                 for(index = 0;index < ret;index++ ){
@@ -143,7 +163,7 @@ namespace totoro {
                     connection->SetWorkSock(cur);
                     auto event = events[index].events;
                     if(event & EPOLLRDHUP){
-                        LOG_TRACE(EpollerChan,"connection close");
+                        LOG_TRACE(EpollerChan,std::to_string(cur) + " connection close");
                         DelConnection(connection);
                     }else if(event & EPOLLERR){
                         LOG_ERROR(EpollerChan,"epoll error");
@@ -163,7 +183,7 @@ namespace totoro {
         }
     public:
         explicit Epoller(bool& _isStop,IPFilter* _filter = nullptr,
-                         bool _et = false,bool _oneShot = true,bool _noneBlock = false):
+                         bool _et = false,bool _oneShot = true,bool _noneBlock = true):
         isStop(_isStop),filter(_filter),edgeTriggle(_et),
         oneShot(_oneShot),noneBlock(_noneBlock){
             if((id =epoll_create(1234)) < 0){
@@ -178,14 +198,16 @@ namespace totoro {
 
         bool AddConnection(TCPSocket& tcpSocket){
             if(EpollAdd(tcpSocket.Sock()) < 0){
+                LOG_ERROR(EpollerChan,"add connection failed");
                 return false;
             }
-            candidateMap[tcpSocket.Sock()] = {tcpSocket.Addr(),tcpSocket.DestAddr()};
             return true;
         };
 
         void DelConnection(std::shared_ptr<T>& conn){
-            EpollDel(conn->Sock());
+            if(EpollDel(conn->Sock())<0){
+                LOG_ERROR(EpollerChan, strerror(errno));
+            }
             int sock = conn->Sock();
             int ret = conn->Close();
             if(ret >= 0) {

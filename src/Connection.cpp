@@ -11,6 +11,7 @@ namespace totoro {
         oneShot = connectionInitParameter.oneShot;
         edgeTriggle = connectionInitParameter.edgeTriggle;
         forwardCandidateMap = connectionInitParameter.forwardCandidateMap;
+        closeChan = connectionInitParameter.closeChan;
         Socket::Init(connectionInitParameter.sock,connectionInitParameter.myAddr,
                      connectionInitParameter.destAddr);
         return 0;
@@ -71,67 +72,107 @@ namespace totoro {
             lastStatus = None;
         }
         while(status != None){
-            int ret;
+            CallbackReturnType ret;
             switch (status) {
                 case Read : {
                     ret = ReadCallback();
-                    if(status == None) break;
                     switch(ret){
-                        case 2 : status = None; break;
-                        case 1 : status = AfterRead; break;
-                        case 0 : lastStatus = Read;status = None; break;
-                        default: {
+                        case SUCCESS : status = AfterRead; break;
+                        case AGAIN : {
+                            lastStatus = status;
+                            RegisterNextEvent(workSock,Read,true);
+                            status = None;
+                            break;
+                        }
+                        case FAILED : {
                             LOG_ERROR(ConnectionChan,"ReadCallback failed");
                             status = Error;
+                            break;
+                        }
+                        case SHUTDOWN : {
+                            ShutDown();
+                            status = None;
+                            break;
                         }
                     }
                     break;
                 }
                 case AfterRead : {
                     ret = AfterReadCallback();
-                    if(status == None) break;
                     switch(ret){
-                        case 2 : status = None; break;
-                        case 1 : status = Write; break;
-                        case 0 : lastStatus = AfterRead;status = None; break;
-                        default: {
+                        case SUCCESS : status = Write; break;
+                        case AGAIN : {
+                            lastStatus = status;
+                            RegisterNextEvent(workSock, Read, true);
+                            status = None;
+                            break;
+                        }
+                        case FAILED : {
                             LOG_ERROR(ConnectionChan,"AfterReadCallback failed");
                             status = Error;
+                            break;
+                        }
+                        case SHUTDOWN : {
+                            ShutDown();
+                            status = None;
+                            break;
                         }
                     }
                     break;
                 }
                 case Write : {
                     ret = WriteCallback();
-                    if(status == None) break;
                     switch(ret){
-                        case 2 : status = None; break;
-                        case 1 : status = AfterWrite; break;
-                        case 0 : lastStatus = Write;status = None; break;
-                        default: {
+                        case SUCCESS : status = AfterWrite; break;
+                        case AGAIN : {
+                            lastStatus = status;
+                            RegisterNextEvent(workSock, Write, true);
+                            status = None;
+                            break;
+                        }
+                        case FAILED : {
                             LOG_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
+                            break;
+                        }
+                        case SHUTDOWN : {
+                            ShutDown();
+                            status = None;
+                            break;
                         }
                     }
                     break;
                 }
                 case AfterWrite : {
                     ret = AfterWriteCallback();
-                    if(status == None) break;
                     switch(ret) {
-                        case 2 : status = None; break;
-                        case 0 : lastStatus = AfterWrite;
-                        case 1 : status = None; break;
-                        default:{
-                            LOG_ERROR(ConnectionChan,"AfterWriteCallback failed");
+                        case SUCCESS : {
+                            RegisterNextEvent(sock,Read,true);
+                            status = None;
+                            break;
+                        }
+                        case AGAIN : {
+                            lastStatus = status;
+                            RegisterNextEvent(workSock, Write, true);
+                            status = None;
+                            break;
+                        }
+                        case FAILED : {
+                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
+                            break;
+                        }
+                        case SHUTDOWN : {
+                            ShutDown();
+                            status = None;
+                            break;
                         }
                     }
                     break;
                 }
                 case Error :
-                    RegisterNextEvent(sock,Read,true);
                     ShutDown();
+                    status = None;
                 case None : {
                     return;
                 }
@@ -141,6 +182,12 @@ namespace totoro {
 
     int Connection::Close() {
         status = None;
+        filter = nullptr;
+        forwardCandidateMap = nullptr;
+        lastStatus = None;
+        epollId = BAD_FILE_DESCRIPTOR;
+        workSock = BAD_FILE_DESCRIPTOR;
+        LOG_TRACE(ConnectionChan,std::to_string(sock) + " closed");
         return TCPSocket::Close();
     }
 
@@ -148,32 +195,28 @@ namespace totoro {
         workSock = _sock;
     }
 
-    /* Protected Impl */
-    int Connection::ReadCallback() {
-        if(TCPSocket::RecvAll(data)){
-            return 1;
-        }
-        return -1;
+    Connection::CallbackReturnType Connection::ReadCallback() {
+        return SUCCESS;
     }
 
-    int Connection::AfterReadCallback() {
-        return 1;
+    Connection::CallbackReturnType Connection::AfterReadCallback() {
+        return SUCCESS;
     }
 
-    int Connection::WriteCallback() {
-        if(TCPSocket::SendAll(data)){
-            return 1;
-        }
-        return -1;
+    Connection::CallbackReturnType Connection::WriteCallback() {
+        return SUCCESS;
     }
 
-    int Connection::AfterWriteCallback() {
-        RegisterNextEvent(sock,Read,true);
-        return 1;
+    Connection::CallbackReturnType Connection::AfterWriteCallback() {
+        return SUCCESS;
     }
 
     int Connection::ShutDown() {
-        shutdown(sock,SHUT_RD);
+        if(closeChan){
+            closeChan->push(sock);
+        }
+        shutdown(sock,SHUT_RDWR);
+        RegisterNextEvent(sock,Read,true);
         return 1;
     }
 

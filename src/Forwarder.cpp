@@ -1,47 +1,76 @@
 #include "Forwarder.h"
 
 namespace totoro {
-    HttpForwarder::HttpForwarder(HttpBase &_client):client(_client) {}
 
-    int HttpForwarder::WakeClient() {
+    int HttpForwarder::InitForwarder(const std::string &ip, unsigned int port) {
         return 0;
     }
 
-    int totoro::HttpForwarder::ReadCallback() {
+    Connection::CallbackReturnType HttpForwarder::ForwarderReadCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpForwarder::ForwarderAfterReadCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpForwarder::ForwarderWriteCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpForwarder::ForwarderAfterWriteCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType totoro::HttpForwarder::ReadCallback() {
         return HttpBase::ReadCallback();
     }
 
-    int totoro::HttpForwarder::AfterReadCallback() {
+    Connection::CallbackReturnType totoro::HttpForwarder::AfterReadCallback() {
         return HttpBase::AfterReadCallback();
     }
 
-    int totoro::HttpForwarder::WriteCallback() {
+    Connection::CallbackReturnType totoro::HttpForwarder::WriteCallback() {
         return HttpBase::WriteCallback();
     }
 
-    int totoro::HttpForwarder::AfterWriteCallback() {
+    Connection::CallbackReturnType totoro::HttpForwarder::AfterWriteCallback() {
         return HttpBase::AfterWriteCallback();
     }
 
-    HttpsForwarder::HttpsForwarder(HttpsBase &_client):client(_client) {}
-
-    int HttpsForwarder::WakeClient() {
+    int HttpsForwarder::InitForwarder(const std::string &ip, unsigned int port) {
         return 0;
     }
 
-    int HttpsForwarder::ReadCallback() {
+    Connection::CallbackReturnType HttpsForwarder::ForwarderReadCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpsForwarder::ForwarderAfterReadCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpsForwarder::ForwarderWriteCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpsForwarder::ForwarderAfterWriteCallback() {
+        return SUCCESS;
+    }
+
+    Connection::CallbackReturnType HttpsForwarder::ReadCallback() {
         return HttpsBase::ReadCallback();
     }
 
-    int HttpsForwarder::AfterReadCallback() {
+    Connection::CallbackReturnType HttpsForwarder::AfterReadCallback() {
         return HttpsBase::AfterReadCallback();
     }
 
-    int HttpsForwarder::WriteCallback() {
+    Connection::CallbackReturnType HttpsForwarder::WriteCallback() {
         return HttpsBase::WriteCallback();
     }
 
-    int HttpsForwarder::AfterWriteCallback() {
+    Connection::CallbackReturnType HttpsForwarder::AfterWriteCallback() {
         return HttpsBase::AfterWriteCallback();
     }
 } // totoro

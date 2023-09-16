@@ -12,7 +12,7 @@ namespace totoro {
     class ThreadPool {
         using Ptr = std::shared_ptr<T>                          ;
         int threadCount                                         {8};
-        int maxWorkCount                                        {8196};
+        int maxWorkCount                                        {20000};
         BlockChannel<Ptr> workChan                              ;
         std::atomic<bool> isStop                                {false};
         std::vector<std::shared_ptr<std::thread>> threads       {};
