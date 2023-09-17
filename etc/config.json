@@ -8,7 +8,8 @@
     "channels" : {
       "TEST": "TRACE",
       "Epoller": "ERROR",
-      "Acceptor": "ERROR"
+      "Acceptor": "ERROR",
+      "Connection": "ERROR"
     },
     "savePath" : "log/log.log"
   },
@@ -41,7 +42,7 @@
     {
       "ip": "0.0.0.0",
       "port": 8888,
-      "reactorNum": 4,
+      "reactorNum": 1,
       "epollTimeout": 0,
       "allow":[],
       "deny": [],
