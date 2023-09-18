@@ -52,6 +52,7 @@ namespace totoro {
         void Run();
         int ShutDown();
         int Close() override;
+        void ClearData();
         bool BanAddr(const std::string& banIp);
         bool AllowAddr(const std::string& allowIp);
         void SetWorkSock(SocketID sock);

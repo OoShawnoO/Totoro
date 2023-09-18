@@ -297,6 +297,7 @@ namespace totoro {
         data.clear();
         requestText.clear();
         responseText.clear();
+        parseStatus = RecvHeader;
     }
 
     Connection::CallbackReturnType HttpBase::ParseRequest() {
@@ -867,19 +868,31 @@ namespace totoro {
             LOG_ERROR(HttpBaseChan,"request header content can't get line");
             return false;
         }
+        auto pos = line.find(' ');
+        if(pos == std::string::npos) {
+            LOG_ERROR(HttpBaseChan,"parse response line failed");
+            return false;
+        }
+        auto secondPos = line.find(' ',pos + 1);
+        if(pos == std::string::npos) {
+            LOG_ERROR(HttpBaseChan,"parse response line failed");
+            return false;
+        }
+        status = (HttpStatus)stoi(line.substr(pos + 1,secondPos - pos -1));
+        version = ReverseHttpVersionMap.at(line.substr(0,pos));
 
-        std::cmatch matches;
-        if(!std::regex_match(line.c_str(), matches, RequestLineRegex)){
-            LOG_ERROR(HttpBaseChan,"match first line failed");
-            return false;
-        }
-        try{
-            status = (HttpStatus)stoi(matches[2]);
-            version = ReverseHttpVersionMap.at(matches[1]);
-        }catch(...){
-            LOG_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
-            return false;
-        }
+//        std::cmatch matches;
+//        if(!std::regex_match(line.c_str(), matches, RequestLineRegex)){
+//            LOG_ERROR(HttpBaseChan,"match first line failed");
+//            return false;
+//        }
+//        try{
+//            status = (HttpStatus)stoi(matches[2]);
+//            version = ReverseHttpVersionMap.at(matches[1]);
+//        }catch(...){
+//            LOG_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
+//            return false;
+//        }
 
         while(getLine(stream,line)){
             if(line.empty()) break;
@@ -895,7 +908,7 @@ namespace totoro {
                 field.emplace_back(std::move(line));
             }
         }
-        auto pos = static_cast<size_t>(stream.tellg());
+        pos = static_cast<size_t>(stream.tellg());
         responseHeaderData.erase(responseHeaderData.begin(),responseHeaderData.begin() + pos);
 
         return true;

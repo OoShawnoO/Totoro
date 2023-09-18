@@ -88,7 +88,7 @@ namespace totoro {
     protected:
         enum HttpParseStatus {
             ParseOk,RecvHeader,ParseHeader,RecvBody,ParseBody,SendHeader,SendBody,SendOk
-        }parseStatus                                        {RecvHeader};
+        };
 
         CallbackReturnType ReadCallback() override;
         CallbackReturnType AfterReadCallback() override;
@@ -99,6 +99,7 @@ namespace totoro {
         CallbackReturnType ParseResponse();
         CallbackReturnType SendRequest();
         CallbackReturnType SendResponse();
+        HttpParseStatus parseStatus                      {RecvHeader};
 
         std::string requestText;
 

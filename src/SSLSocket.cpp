@@ -1,5 +1,6 @@
 #include <cstring>
 #include <fcntl.h>
+#include <csignal>
 #include "core/Configure.h"
 #include "core/SSLSocket.h"
 
@@ -311,6 +312,7 @@ namespace totoro {
 
     int SSLSocket::Close() {
         if(connection){
+            signal(SIGPIPE,SIG_IGN);
             SSL_shutdown(connection);
             SSL_free(connection);
             connection = nullptr;

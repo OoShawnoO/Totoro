@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <climits>
+#include <csignal>
 #include "Epoller.h"
 #include "IPFilter.h"
 
@@ -67,7 +68,6 @@ namespace totoro {
 
             for(const auto& bannedIP : deny) filter.AddBan(inet_addr(std::string(bannedIP).c_str()));
             for(const auto& allowedIP : allow) filter.AddAllow(inet_addr(std::string(allowedIP).c_str()));
-
             for(auto& reactor : reactors) {
                 std::thread(E::Poll,&reactor,epollTimeout).detach();
             }

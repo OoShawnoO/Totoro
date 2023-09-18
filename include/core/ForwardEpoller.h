@@ -19,6 +19,7 @@ namespace totoro {
             int ret = conn->Close();
             if(ret >= 0) {
                 Epoller<T>::EpollDel(ret);
+                Epoller<T>::forwardCandidateMap.erase(ret);
                 Epoller<T>::connectionMap.erase(ret);
             }
             Epoller<T>::connectionPool.release(conn);

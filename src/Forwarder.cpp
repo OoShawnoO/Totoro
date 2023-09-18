@@ -1,11 +1,14 @@
 #include <netdb.h>
+#include <iostream>
 #include "Forwarder.h"
+#include "fmt/format.h"
+
 const std::string HttpReverseForwarderChan = "HttpReverseForwarder";
 const std::string HttpsReverseForwarderChan = "HttpsReverseForwarder";
 const std::string HttpsForwardForwarderChan = "HttpsForwardForwarder";
 const std::string HttpForwardForwarderChan = "HttpForwardForwarder";
 namespace totoro {
-
+    /* region HttpForwardForwarder */
     int HttpForwardForwarder::InitForwarder() {
         auto host = requestHeader.GetFields().find("Host");
         if(host == requestHeader.GetFields().end() || host->second.empty()){
@@ -65,8 +68,10 @@ namespace totoro {
     }
 
     Connection::CallbackReturnType HttpForwardForwarder::ForwarderAfterWriteCallback() {
+        forwarder.parseStatus = RecvHeader;
         RegisterNextEvent(sock,Write,true);
-        return SUCCESS;
+        forwarder.ClearData();
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType totoro::HttpForwardForwarder::ReadCallback() {
@@ -90,6 +95,7 @@ namespace totoro {
         }else if(ret == 0){
             return AGAIN;
         }
+        forwarder.parseStatus = RecvHeader;
         RegisterNextEvent(forwarder.Sock(),Read,true);
         return INTERRUPT;
     }
@@ -118,14 +124,11 @@ namespace totoro {
     int HttpForwardForwarder::Close() {
         return Connection::Close();
     }
+    /* endregion */
 
+    /* region HttpsForwardForwarder */
     int HttpsForwardForwarder::InitForwarder() {
-        auto host = requestHeader.GetFields().find("Host");
-        if(host == requestHeader.GetFields().end() || host->second.empty()){
-            LOG_ERROR(HttpsForwardForwarderChan,"host not found");
-            return -1;
-        }
-        std::string ip,hostAddr = host->second[0];
+        std::string ip,hostAddr = requestHeader.GetUrl();
         unsigned short port;
         auto pos = hostAddr.find(':');
         if(pos == std::string::npos){
@@ -140,7 +143,6 @@ namespace totoro {
             LOG_ERROR(HttpsForwardForwarderChan,"can't parse ip address:" + ip);
             return -1;
         }
-        forwarder.TCPSocket::Init();
         bool connected = false;
         std::string tempIP;
         for(int i=0;hostEntry->h_addr_list[i];i++){
@@ -158,42 +160,113 @@ namespace totoro {
             LOG_ERROR(HttpsForwardForwarderChan,"unable to add forward pair");
             return -1;
         }
-        if(EpollAdd(forwarder.Sock()) < 0){
-            LOG_ERROR(HttpsForwardForwarderChan, strerror(errno));
-            return -1;
-        }
         return 1;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::ForwarderReadCallback() {
-        return SUCCESS;
+        LOG_TRACE(HttpsForwardForwarderChan,"");
+        return forwarder.ParseResponse();
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::ForwarderAfterReadCallback() {
+        LOG_TRACE(HttpsForwardForwarderChan,"");
         return SUCCESS;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::ForwarderWriteCallback() {
+        LOG_TRACE(HttpsForwardForwarderChan,"");
         return SUCCESS;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::ForwarderAfterWriteCallback() {
-        return SUCCESS;
+        LOG_TRACE(HttpsForwardForwarderChan,"");
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(sock,Write,true);
+        forwarder.Clear();
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::ReadCallback() {
+        if(!connection) {
+            if(!TCPSocket::RecvAll(data,true)){
+                return FAILED;
+            }
+            if(!requestHeader.Parse(data) || requestHeader.GetMethod() != CONNECT) return FAILED;
+            if(InitForwarder() < 0) return FAILED;
+            data.clear();
+            LOG_TRACE(HttpsForwardForwarderChan,"tls");
+            return SUCCESS;
+        }
+        if(workSock == forwarder.Sock()){
+            return ForwarderReadCallback();
+        }
+        LOG_TRACE(HttpsForwardForwarderChan,"");
         return HttpsBase::ReadCallback();
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::AfterReadCallback() {
-        return HttpsBase::AfterReadCallback();
+        if(!connection) {
+            LOG_TRACE(HttpsForwardForwarderChan,"tls");
+            return SUCCESS;
+        }
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterReadCallback();
+        }
+        int ret = forwarder.SendAll(requestText);
+        if(ret < 0){
+            LOG_ERROR(HttpForwardForwarderChan,"forwarder send request failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(forwarder.Sock(),Read,true);
+        LOG_TRACE(HttpsForwardForwarderChan,"");
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::WriteCallback() {
-        return HttpsBase::WriteCallback();
+        if(!connection) {
+            LOG_TRACE(HttpsForwardForwarderChan,"tls");
+            int ret = TCPSocket::SendAll(fmt::format("{} 200 Connection Established\r\n\r\n",HttpVersionMap.at(requestHeader.GetVersion())));
+            if(ret < 0){
+                LOG_ERROR(HttpForwardForwarderChan,"send response failed");
+                return FAILED;
+            }else if(ret == 0){
+                return AGAIN;
+            }
+            return SUCCESS;
+        }
+        if(workSock == forwarder.Sock()){
+            return ForwarderWriteCallback();
+        }
+        int ret = SendAll(forwarder.responseText);
+        if(ret < 0){
+            LOG_ERROR(HttpForwardForwarderChan,"send response failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        LOG_TRACE(HttpsForwardForwarderChan,"");
+        return SUCCESS;
     }
 
     Connection::CallbackReturnType HttpsForwardForwarder::AfterWriteCallback() {
+        if(!connection){
+            LOG_TRACE(HttpsForwardForwarderChan,"tls");
+            if(InitSSL() < 0){
+                return FAILED;
+            }
+            if(EpollAdd(forwarder.Sock()) < 0){
+                LOG_ERROR(HttpsForwardForwarderChan, strerror(errno));
+                return FAILED;
+            }
+            return SUCCESS;
+        }
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterWriteCallback();
+        }
+        LOG_TRACE(HttpsForwardForwarderChan,"");
         return HttpsBase::AfterWriteCallback();
     }
 
@@ -201,6 +274,9 @@ namespace totoro {
         return HttpsBase::Close();
     }
 
+    /* endregion */
+
+    /* region HttpReverseForwarder */
     int HttpReverseForwarder::InitForwarder() {
         return 0;
     }
@@ -240,7 +316,9 @@ namespace totoro {
     int HttpReverseForwarder::Close() {
         return Connection::Close();
     }
+    /* endregion */
 
+    /* region HttpsReverseForwarder */
     int HttpsReverseForwarder::InitForwarder() {
         return 0;
     }
@@ -280,4 +358,5 @@ namespace totoro {
     int HttpsReverseForwarder::Close() {
         return HttpsBase::Close();
     }
+    /* endregion */
 } // totoro

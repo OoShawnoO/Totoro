@@ -203,7 +203,6 @@ namespace totoro {
         lastStatus = None;
         epollId = BAD_FILE_DESCRIPTOR;
         workSock = BAD_FILE_DESCRIPTOR;
-        LOG_TRACE(ConnectionChan,std::to_string(sock) + " closed");
         return TCPSocket::Close();
     }
 
@@ -246,6 +245,10 @@ namespace totoro {
         if(!filter) return false;
         in_addr_t addr = inet_addr(allowIp.c_str());
         return filter->AddAllow(addr);
+    }
+
+    void Connection::ClearData() {
+        data.clear();
     }
 }
 

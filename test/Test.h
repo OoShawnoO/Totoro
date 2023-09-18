@@ -9,6 +9,7 @@
 #include "core/Acceptor.h"
 #include "core/Epoller.h"
 #include "core/HttpBase.h"
+#include "core/HttpsBase.h"
 
 #define ASSERT(data,right) do{      \
     if(data == right){              \
@@ -153,7 +154,7 @@ void TEST_UdpSendRecvFile(){
 void TEST_Acceptor(){
     bool isStop{false};
     const auto& conf = Configure::Get()["SERVER"][0];
-    Acceptor<Epoller<HttpBase>> acceptor(isStop,conf);
+    Acceptor<Epoller<HttpsBase>> acceptor(isStop,conf);
     acceptor.Run();
 }
 
