@@ -881,19 +881,6 @@ namespace totoro {
         status = (HttpStatus)stoi(line.substr(pos + 1,secondPos - pos -1));
         version = ReverseHttpVersionMap.at(line.substr(0,pos));
 
-//        std::cmatch matches;
-//        if(!std::regex_match(line.c_str(), matches, RequestLineRegex)){
-//            LOG_ERROR(HttpBaseChan,"match first line failed");
-//            return false;
-//        }
-//        try{
-//            status = (HttpStatus)stoi(matches[2]);
-//            version = ReverseHttpVersionMap.at(matches[1]);
-//        }catch(...){
-//            LOG_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
-//            return false;
-//        }
-
         while(getLine(stream,line)){
             if(line.empty()) break;
             auto splitPos = line.find(':');

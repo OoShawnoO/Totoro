@@ -1,9 +1,9 @@
 {
-  "SERVER-KEY":"test/server.key",
-  "SERVER-CERT": "test/server.crt",
-  "CA-CERT": "test/ca.crt",
-  "CLIENT-KEY": "test/client.key",
-  "CLIENT-CERT": "test/client.crt",
+  "SERVER-KEY":"test/n1nja.xyz_bundle.pem",
+  "SERVER-CERT": "test/n1nja.xyz_bundle.crt",
+  "CA-CERT": "test/n1nja.xyz.csr",
+  "CLIENT-KEY": "test/n1nja.xyz_bundle.pem",
+  "CLIENT-CERT": "test/n1nja.xyz_bundle.crt",
   "LOG": {
     "channels" : {
       "TEST": "TRACE",
