@@ -15,6 +15,7 @@ namespace totoro {
      */
     template<class T = Connection>
     class Epoller {
+    protected:
         using ConnectionMap = std::unordered_map<SocketID ,std::shared_ptr<T>>;
         using ConnectionMapIterator = typename ConnectionMap::iterator;
         using ForwardCandidateMapIterator = typename ForwardCandidateMap::iterator;
@@ -33,7 +34,6 @@ namespace totoro {
         ConnectionInitParameter connectionInitParameter                 {};
         ConnectionMap connectionMap                                     {};
         ForwardCandidateMap forwardCandidateMap                         {};
-        Channel<SocketID> closeChan                                     {};
 
         void NoneBlock(SocketID socketId) {
             int option = fcntl(socketId,F_GETFL);
@@ -61,22 +61,8 @@ namespace totoro {
             return epoll_ctl(id,EPOLL_CTL_DEL,socketId,nullptr);
         }
 
-        bool getMapIterator(SocketID cur,ConnectionMapIterator & mapIterator){
+        virtual bool getMapIterator(SocketID cur,ConnectionMapIterator & mapIterator){
             if((mapIterator = connectionMap.find(cur)) == connectionMap.end()){
-
-                ForwardCandidateMapIterator forwardIter;
-                if((forwardIter = forwardCandidateMap.find(cur)) != forwardCandidateMap.end()){
-                    if((mapIterator = connectionMap.find(forwardIter->second)) == connectionMap.end()){
-                        LOG_ERROR(EpollerChan,"not found connection for forward socket");
-                        return false;
-                    }
-                    if(!connectionMap.insert({cur,mapIterator->second}).second){
-                        LOG_ERROR(EpollerChan,"can't insert forward socket to connection map");
-                        return false;
-                    }
-                    forwardCandidateMap.erase(forwardIter);
-                    return true;
-                }
 
                 std::shared_ptr<T> conn;
                 sockaddr_in myAddr{},destAddr{};
@@ -134,26 +120,12 @@ namespace totoro {
             connectionInitParameter.oneShot = oneShot;
             connectionInitParameter.edgeTriggle = edgeTriggle;
             connectionInitParameter.forwardCandidateMap = &forwardCandidateMap;
-//            connectionInitParameter.closeChan = &closeChan;
 
             while(!isStop){
                 if((ret = epoll_wait(id,events,4096,timeOut)) < 0){
                     if(errno == EINTR) continue;
                     LOG_ERROR(EpollerChan,"epoll wait failed");
                     exit(-1);
-                }
-
-                while(!closeChan.empty()){
-                    SocketID sock;
-                    if(!closeChan.pop(sock)){
-                        LOG_ERROR(EpollerChan,"close channel pop error");
-                        continue;
-                    }
-                    if((mapIterator = connectionMap.find(sock)) == connectionMap.end()){
-                        LOG_ERROR(EpollerChan,"sock not found in connection map");
-                        continue;
-                    }
-                    DelConnection(mapIterator->second);
                 }
 
                 for(index = 0;index < ret;index++ ){
@@ -204,16 +176,12 @@ namespace totoro {
             return true;
         };
 
-        void DelConnection(std::shared_ptr<T>& conn){
+        virtual void DelConnection(std::shared_ptr<T>& conn){
             if(EpollDel(conn->Sock())<0){
                 LOG_ERROR(EpollerChan, strerror(errno));
             }
             int sock = conn->Sock();
-            int ret = conn->Close();
-            if(ret >= 0) {
-                EpollDel(ret);
-                connectionMap.erase(ret);
-            }
+            conn->Close();
             connectionPool.release(conn);
             connectionMap.erase(sock);
             currentConnectCount--;

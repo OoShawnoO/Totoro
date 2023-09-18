@@ -1,6 +1,6 @@
 #include <sys/epoll.h>
 #include <fcntl.h>
-#include "Connection.h"
+#include "core/Connection.h"
 
 const std::string ConnectionChan = "Connection";
 namespace totoro {
@@ -94,6 +94,10 @@ namespace totoro {
                             status = None;
                             break;
                         }
+                        case INTERRUPT : {
+                            status = None;
+                            break;
+                        }
                     }
                     break;
                 }
@@ -117,6 +121,10 @@ namespace totoro {
                             status = None;
                             break;
                         }
+                        case INTERRUPT : {
+                            status = None;
+                            break;
+                        }
                     }
                     break;
                 }
@@ -137,6 +145,10 @@ namespace totoro {
                         }
                         case SHUTDOWN : {
                             ShutDown();
+                            status = None;
+                            break;
+                        }
+                        case INTERRUPT : {
                             status = None;
                             break;
                         }
@@ -164,6 +176,10 @@ namespace totoro {
                         }
                         case SHUTDOWN : {
                             ShutDown();
+                            status = None;
+                            break;
+                        }
+                        case INTERRUPT : {
                             status = None;
                             break;
                         }

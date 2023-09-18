@@ -230,9 +230,9 @@ namespace totoro {
         return 1;
     }
 
-    int SSLSocket::RecvWithHeader(std::string &data) {
+    int SSLSocket::RecvWithHeader(std::string &data,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             header h{};
             if(SSL_read(connection,&h,TCP_HEADER_SIZE) <= 0){
                 return -1;
@@ -346,9 +346,9 @@ namespace totoro {
         return SSLSocket::sendImpl(data);
     }
 
-    int SSLSocket::Recv(std::string &data, size_t size) {
+    int SSLSocket::Recv(std::string &data, size_t size,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             readTotalBytes = size;
             readCursor = 0;
             isNew = false;
@@ -356,9 +356,9 @@ namespace totoro {
         return SSLSocket::recvImpl(data);
     }
 
-    bool SSLSocket::RecvAll(std::string &data) {
+    bool SSLSocket::RecvAll(std::string &data,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             readTotalBytes = SIZE_MAX;
             readCursor = 0;
             isNew = false;

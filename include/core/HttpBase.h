@@ -10,8 +10,6 @@ namespace totoro {
         std::string fileName;
         std::string data;
     };
-    // HTTP 内容类型 / HTTP Content Type
-    using HttpContentType = std::string;
     // HTTP 内容数据类型 / HTTP Content Data Type
     using HttpContentDataType = std::string;
     // HTTP 请求参数类型 / HTTP Request Parameter Type
@@ -88,13 +86,27 @@ namespace totoro {
 
     class HttpBase : public virtual Connection {
     protected:
+        enum HttpParseStatus {
+            ParseOk,RecvHeader,ParseHeader,RecvBody,ParseBody,SendHeader,SendBody,SendOk
+        }parseStatus                                        {RecvHeader};
+
         CallbackReturnType ReadCallback() override;
         CallbackReturnType AfterReadCallback() override;
         CallbackReturnType WriteCallback() override;
         CallbackReturnType AfterWriteCallback() override;
+    public:
+        CallbackReturnType ParseRequest();
+        CallbackReturnType ParseResponse();
+        CallbackReturnType SendRequest();
+        CallbackReturnType SendResponse();
+
+        std::string requestText;
+
+        std::string responseText;
+
+        void Clear();
+
         virtual void RenderStatus(HttpStatus status);
-        virtual bool SendResponseHeader();
-        virtual bool SendResponseBody();
     protected:
         // 请求头信息 / Request Header Information
         struct RequestHeader{
@@ -113,6 +125,7 @@ namespace totoro {
             HttpCookieType cookies;
             // 多分界数据分界线 / Multiple-part Boundary
             std::string boundary;
+            // 解析url参数 / Parse url parameters
             void parseParameters(std::string&& parameterText);
         public:
             // 解析请求头 / Parse request header
@@ -151,7 +164,7 @@ namespace totoro {
             void SetField(const std::string& key,const std::vector<std::string>& values);
             // 获取多分界数据分界线 / Get request multi-part boundary
             const std::string& GetBoundary() const;
-            // 设置多分界数据分界线 / Set request nulti-part boundary
+            // 设置多分界数据分界线 / Set request multi-part boundary
             void SetBoundary(const std::string& boundary);
             // 字符串化 / To string
             std::string toString();

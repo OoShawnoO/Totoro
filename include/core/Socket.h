@@ -48,9 +48,9 @@ namespace totoro {
         virtual int SendFileWithHeader(const std::string& filePath) = 0;
         virtual int SendFile(const std::string& filePath) = 0;
 
-        virtual int RecvWithHeader(std::string& data);
-        virtual int Recv(std::string& data,size_t size) = 0;
-        virtual bool RecvAll(std::string& data) = 0;
+        virtual int RecvWithHeader(std::string& data,bool isAppend);
+        virtual int Recv(std::string& data,size_t size,bool isAppend) = 0;
+        virtual bool RecvAll(std::string& data,bool isAppend) = 0;
         virtual int RecvFileWithHeader(const std::string& filePath) = 0;
         virtual int RecvFile(const std::string& filePath,size_t size) = 0;
 
@@ -92,9 +92,9 @@ namespace totoro {
         int SendFileWithHeader(const std::string& filePath) override;
         int SendFile(const std::string& filePath) override;
 
-        int RecvWithHeader(std::string& data) override;
-        int Recv(std::string& data,size_t size) override;
-        bool RecvAll(std::string& data) override;
+        int RecvWithHeader(std::string& data,bool isAppend = false) override;
+        int Recv(std::string& data,size_t size,bool isAppend = false) override;
+        bool RecvAll(std::string& data,bool isAppend = false) override;
         int RecvFileWithHeader(const std::string& filePath) override;
         int RecvFile(const std::string& filePath,size_t size) override;
 
@@ -124,9 +124,9 @@ namespace totoro {
         int SendFileWithHeader(const std::string& filePath) override;
         int SendFile(const std::string& filePath) override;
 
-        int RecvWithHeader(std::string& data) override;
-        int Recv(std::string& data,size_t size) override;
-        bool RecvAll(std::string& data) override;
+        int RecvWithHeader(std::string& data,bool isAppend = false) override;
+        int Recv(std::string& data,size_t size,bool isAppend = false) override;
+        bool RecvAll(std::string& data,bool isAppend = false) override;
         int RecvFileWithHeader(const std::string& filePath) override;
         int RecvFile(const std::string& filePath,size_t size) override;
 

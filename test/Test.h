@@ -5,10 +5,10 @@
 #include <fcntl.h>
 #include "core/AsyncLogger.h"
 #include "core/Socket.h"
-#include "Connection.h"
+#include "core/Connection.h"
 #include "core/Acceptor.h"
 #include "core/Epoller.h"
-#include "HttpBase.h"
+#include "core/HttpBase.h"
 
 #define ASSERT(data,right) do{      \
     if(data == right){              \
@@ -153,7 +153,7 @@ void TEST_UdpSendRecvFile(){
 void TEST_Acceptor(){
     bool isStop{false};
     const auto& conf = Configure::Get()["SERVER"][0];
-    Acceptor<HttpBase> acceptor(isStop,conf);
+    Acceptor<Epoller<HttpBase>> acceptor(isStop,conf);
     acceptor.Run();
 }
 

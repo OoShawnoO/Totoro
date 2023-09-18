@@ -16,7 +16,7 @@ namespace totoro {
         return 1;
     }
 
-    int Socket::RecvWithHeader(std::string &data) {
+    int Socket::RecvWithHeader(std::string &data,bool isAppend) {
         return 1;
     }
 
@@ -322,9 +322,9 @@ namespace totoro {
         return 1;
     }
 
-    int TCPSocket::RecvWithHeader(std::string &data) {
+    int TCPSocket::RecvWithHeader(std::string &data,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             header h{};
             if(::recv(sock,&h,TCP_HEADER_SIZE,0) <= 0){
                 return -1;
@@ -336,9 +336,9 @@ namespace totoro {
         return TCPSocket::recvImpl(data);
     }
 
-    int TCPSocket::Recv(std::string &data, size_t size) {
+    int TCPSocket::Recv(std::string &data, size_t size,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             readTotalBytes = size;
             readCursor = 0;
             isNew = false;
@@ -346,10 +346,11 @@ namespace totoro {
         return TCPSocket::recvImpl(data);
     }
 
-    bool TCPSocket::RecvAll(std::string &data) {
+    bool TCPSocket::RecvAll(std::string &data,bool isAppend) {
+        if(!isAppend) data.clear();
         readTotalBytes = SIZE_MAX;
         readCursor = 0;
-        data.clear();
+
         return TCPSocket::recvImpl(data) == 0;
     }
 
@@ -617,18 +618,18 @@ namespace totoro {
     }
 
 
-    int UDPSocket::RecvWithHeader(std::string &data) {
+    int UDPSocket::RecvWithHeader(std::string &data,bool isAppend) {
         size_t size;
         if(recvfrom(sock,&size,sizeof(size_t),0,(sockaddr*)&destAddr,&destAddrLen) < 0){
             LOG_ERROR(SocketChan, strerror(errno));
             return -1;
         }
-        return Recv(data,size);
+        return Recv(data,size,isAppend);
     }
 
-    int UDPSocket::Recv(std::string &data, size_t size) {
+    int UDPSocket::Recv(std::string &data, size_t size,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             readCursor = 0;
             readTotalBytes = size;
             if(readTotalBytes < 1) return -1;
@@ -637,9 +638,9 @@ namespace totoro {
         return UDPSocket::recvImpl(data);
     }
 
-    bool UDPSocket::RecvAll(std::string &data) {
+    bool UDPSocket::RecvAll(std::string &data,bool isAppend) {
         if(isNew){
-            data.clear();
+            if(!isAppend) data.clear();
             readCursor = 0;
             readTotalBytes = SIZE_MAX;
             if(readTotalBytes < 1) return -1;

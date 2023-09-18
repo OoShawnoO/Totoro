@@ -12,21 +12,21 @@ namespace totoro {
      * @brief 负责监听新连接并分发给epoller \n response for accept new connection and dispatch new connection to epoller
      * @tparam T Connection类或继承自Connection类 \n Connection or derived from Connection.
      */
-    template<class T>
+    template<typename E>
     class Acceptor {
         bool& isStop                        ;
         IPFilter filter                     {};
         TCPSocket listenSocket              {};
-        std::deque<Epoller<T>> reactors     {};
+        std::deque<E> reactors     {};
 
-        Epoller<T>& RoundRobin(){
+        E& RoundRobin(){
             static int index = 0;
             return reactors[++index % reactors.size()];
         }
 
-        Epoller<T>& Minimum(){
+        E& Minimum(){
             int minCount = INT_MAX;
-            Epoller<T>* cur = nullptr;
+            E* cur = nullptr;
             for(auto& reactor : reactors){
                 if(reactor.CurrentConnectionCount() < minCount) cur = &reactor;
             }
@@ -69,7 +69,7 @@ namespace totoro {
             for(const auto& allowedIP : allow) filter.AddAllow(inet_addr(std::string(allowedIP).c_str()));
 
             for(auto& reactor : reactors) {
-                std::thread(Epoller<T>::Poll,&reactor,epollTimeout).detach();
+                std::thread(E::Poll,&reactor,epollTimeout).detach();
             }
         }
 

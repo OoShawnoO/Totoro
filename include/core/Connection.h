@@ -46,7 +46,7 @@ namespace totoro {
             None,Read,Write,AfterRead,AfterWrite,Error
         };
         enum CallbackReturnType {
-            FAILED = -1,AGAIN,SUCCESS,SHUTDOWN
+            FAILED = -1,AGAIN,SUCCESS,INTERRUPT,SHUTDOWN
         };
         ~Connection() override;
         void Run();

@@ -1,4 +1,4 @@
-#include "HttpBase.h"
+#include "core/HttpBase.h"
 
 #include <utility>
 #include <sstream>
@@ -222,7 +222,8 @@ namespace totoro {
     static const std::regex RequestParameterRegex("([^&]+)=([^&]*)&?");
     static const std::regex RequestFieldRegex("^(.*):\\s?(.*);?$");
 
-    static auto getLine = [](std::stringstream& _stream,std::string& _line) -> std::basic_istream<char>&{
+    static auto getLine = [](std::stringstream& _stream,std::string& _line)
+            -> std::basic_istream<char>&{
         auto& ret = std::getline(_stream,_line,'\r');
         _stream.ignore(1);
         return ret;
@@ -230,30 +231,10 @@ namespace totoro {
 
 
     Connection:: CallbackReturnType HttpBase::ReadCallback() {
-        if(!TCPSocket::RecvAll(data)) { LOG_ERROR(HttpBaseChan,"failed to recv all"); return FAILED; }
-        if(!requestHeader.Parse(data)) { LOG_ERROR(HttpBaseChan,"failed to parse data"); return FAILED; }
-        return SUCCESS;
+        return ParseRequest();
     }
 
     Connection::CallbackReturnType HttpBase::AfterReadCallback() {
-        if(requestHeader.GetMethod() != POST
-        && requestHeader.GetMethod() != PATCH
-        && requestHeader.GetMethod() != PUT) return SUCCESS;
-
-        if(requestHeader.GetContentLength() > data.size()){
-            std::string temp;
-            if(TCPSocket::Recv(temp,requestHeader.GetContentLength() - data.size()) < 0){
-                return FAILED;
-            }else if(temp.size() != requestHeader.GetContentLength() - data.size()){
-                return AGAIN;
-            }
-            data += temp;
-        }
-        if(!requestBody.Parse(data,requestHeader)) return FAILED;
-        return SUCCESS;
-    }
-
-    Connection::CallbackReturnType HttpBase::WriteCallback() {
         bool ret;
         switch(requestHeader.GetMethod()){
             case GET: {
@@ -296,49 +277,217 @@ namespace totoro {
         return ret ? SUCCESS : FAILED;
     }
 
+    Connection::CallbackReturnType HttpBase::WriteCallback() {
+        return SendResponse();
+    }
+
     Connection::CallbackReturnType HttpBase::AfterWriteCallback() {
-        if(!SendResponseHeader()) { LOG_ERROR(HttpBaseChan,"send response header failed");return FAILED; }
-        if(!SendResponseBody()) { LOG_ERROR(HttpBaseChan,"send response body failed");return FAILED; }
         if(requestHeader.GetVersion() == HttpVersion::HTTP10){
             return SHUTDOWN;
         }
+        Clear();
+        return SUCCESS;
+    }
+
+    void HttpBase::Clear() {
         requestHeader.Clear();
         requestBody.Clear();
         responseHeader.Clear();
         responseBody.Clear();
-        return SUCCESS;
+        data.clear();
+        requestText.clear();
+        responseText.clear();
     }
 
-    bool HttpBase::SendResponseHeader() {
-        std::string headerText = responseHeader.toString();
-        int ret = TCPSocket::SendAll(headerText);
-        if(ret == -1) return false;
-        else if(ret == 0){
-            while((ret =TCPSocket::SendAll(headerText)) == 0){}
-            if(ret == -1) return false;
+    Connection::CallbackReturnType HttpBase::ParseRequest() {
+        int ret;
+        while(true){
+            switch(parseStatus) {
+                case RecvHeader : {
+                    if(!RecvAll(data,true)){
+                        LOG_ERROR(HttpBaseChan,"recv all failed");
+                        return FAILED;
+                    }
+                    size_t size;
+                    if((size =data.find("\r\n\r\n")) == std::string::npos) return AGAIN;
+                    requestText += data.substr(0,size + 4);
+                    parseStatus = ParseHeader;
+                }
+                case ParseHeader : {
+                    if(!requestHeader.Parse(data)) {
+                        LOG_ERROR(HttpBaseChan,"parse header failed");
+                        return FAILED;
+                    }
+                    if(requestHeader.GetMethod() != POST
+                       && requestHeader.GetMethod() != PATCH
+                       && requestHeader.GetMethod() != PUT){
+                        parseStatus = ParseOk;
+                        continue;
+                    }else{
+                        parseStatus = RecvBody;
+                    }
+                }
+                case RecvBody : {
+                    const auto& fields = requestHeader.GetFields();
+                    if(fields.find("Content-Length") != fields.end()){
+                        while(data.size() < requestHeader.GetContentLength()){
+                            ret = Recv(data,requestHeader.GetContentLength() - data.size(),true);
+                            if(ret < 0) {
+                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                return FAILED;
+                            }else if(ret == 0){
+                                return AGAIN;
+                            }
+                        }
+                    }
+                    parseStatus = ParseBody;
+                }
+                case ParseBody : {
+                    if(!requestBody.Parse(data,requestHeader)){
+                        LOG_ERROR(HttpBaseChan,"parse body failed");
+                        return FAILED;
+                    }
+                    requestText += data;
+                    parseStatus = ParseOk;
+                }
+                case ParseOk : {
+                    parseStatus = SendHeader;
+                    return SUCCESS;
+                }
+                default : {
+                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    return FAILED;
+                }
+            }
         }
-        return true;
     }
 
-    bool HttpBase::SendResponseBody() {
-        if(!responseBody.GetResourcePath().empty()){
-            int ret = TCPSocket::SendFile(responseBody.GetResourcePath());
-            if(ret == -1) return false;
-            else if(ret == 0){
-                while((ret = TCPSocket::SendFile(responseBody.GetResourcePath())) == 0){}
-                if(ret == -1) return false;
+    Connection::CallbackReturnType HttpBase::ParseResponse() {
+        int ret;
+        while(true){
+            switch(parseStatus) {
+                case RecvHeader : {
+                    if(!RecvAll(data,true)){
+                        LOG_ERROR(HttpBaseChan,"recv all failed");
+                        return FAILED;
+                    }
+                    size_t size;
+                    if((size =data.find("\r\n\r\n")) == std::string::npos) return AGAIN;
+                    responseText += data.substr(0,size + 4);
+                    parseStatus = ParseHeader;
+                }
+                case ParseHeader : {
+                    if(!responseHeader.Parse(data)) {
+                        LOG_ERROR(HttpBaseChan,"parse header failed");
+                        return FAILED;
+                    }
+                    parseStatus = RecvBody;
+                }
+                case RecvBody : {
+                    if(responseHeader.GetContentLength() != 0){
+                        size_t contentLength = responseHeader.GetContentLength();
+                        while(data.size() < contentLength){
+                            ret = Recv(data,contentLength - data.size(),true);
+                            if(ret < 0) {
+                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                return FAILED;
+                            }else if(ret == 0){
+                                return AGAIN;
+                            }
+                        }
+                    }
+                    else if(responseHeader.GetTransferEncoding() == "chunked"){
+
+                    }
+                    parseStatus = ParseBody;
+                }
+                case ParseBody : {
+                    responseText += data;
+                    parseStatus = ParseOk;
+                }
+                case ParseOk : {
+                    parseStatus = SendHeader;
+                    return SUCCESS;
+                }
+                default : {
+                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    return FAILED;
+                }
             }
         }
-        else
-        {
-            int ret = TCPSocket::SendAll(responseBody.GetData());
-            if(ret == -1) return false;
-            else if(ret == 0){
-                while((ret =TCPSocket::SendAll(responseBody.GetData())) == 0){}
-                if(ret == -1) return false;
+    }
+
+    Connection::CallbackReturnType HttpBase::SendRequest() {
+        int ret;
+        while(true){
+            switch(parseStatus) {
+                case SendHeader : {
+                    if(requestText.empty()) requestText = requestHeader.toString();
+                    ret = SendAll(requestText);
+                    if(ret == -1) return FAILED;
+                    else if(ret == 0) return AGAIN;
+                    if(requestHeader.GetMethod() != POST
+                       && requestHeader.GetMethod() != PATCH
+                       && requestHeader.GetMethod() != PUT){
+                        parseStatus = ParseOk;
+                        continue;
+                    }else{
+                        parseStatus = RecvBody;
+                    }
+                    requestText.clear();
+                }
+                case SendBody : {
+                    if(requestText.empty()) requestText = requestBody.toString(requestHeader);
+                    ret = SendAll(requestText);
+                    if(ret == -1) return FAILED;
+                    else if(ret == 0) return AGAIN;
+                    parseStatus = SendOk;
+                }
+                case SendOk : {
+                    parseStatus = RecvHeader;
+                    return SUCCESS;
+                }
+                default : {
+                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    return FAILED;
+                }
             }
         }
-        return true;
+    }
+
+    Connection::CallbackReturnType HttpBase::SendResponse() {
+        int ret;
+        switch(parseStatus) {
+            case SendHeader : {
+                if(responseText.empty()) responseText = responseHeader.toString();
+                ret = SendAll(responseText);
+                if(ret == -1) return FAILED;
+                else if(ret == 0) return AGAIN;
+                parseStatus = SendBody;
+            }
+            case SendBody : {
+                if(!responseBody.GetResourcePath().empty()){
+                    ret = SendFile(responseBody.GetResourcePath());
+                    if(ret == -1) return FAILED;
+                    else if(ret == 0) return AGAIN;
+                }
+                else
+                {
+                    ret = SendAll(responseBody.GetData());
+                    if(ret == -1) return FAILED;
+                    else if(ret == 0) return AGAIN;
+                }
+                parseStatus = SendOk;
+            }
+            case SendOk : {
+                parseStatus = RecvHeader;
+                return SUCCESS;
+            }
+            default : {
+                LOG_ERROR(HttpBaseChan,"parse status error");
+                return FAILED;
+            }
+        }
     }
 
     void HttpBase::RenderStatus(HttpStatus _status) {

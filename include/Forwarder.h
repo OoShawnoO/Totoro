@@ -1,26 +1,26 @@
 #ifndef TOTORO_FORWARDER_H
 #define TOTORO_FORWARDER_H
 
-#include "Connection.h"
+#include "core/Connection.h"
 #include "core/SSLSocket.h"
-#include "HttpBase.h"
-#include "HttpsBase.h"
+#include "core/HttpBase.h"
+#include "core/HttpsBase.h"
 
 namespace totoro {
 
     class Forwarder{
     protected:
-        virtual int InitForwarder(const std::string& ip,unsigned port) = 0;
+        virtual int InitForwarder() = 0;
         virtual Connection::CallbackReturnType ForwarderReadCallback() = 0;
         virtual Connection::CallbackReturnType ForwarderAfterReadCallback() = 0;
         virtual Connection::CallbackReturnType ForwarderWriteCallback() = 0;
         virtual Connection::CallbackReturnType ForwarderAfterWriteCallback() = 0;
     };
 
-    class HttpForwarder : public HttpBase,public Forwarder {
+    class HttpReverseForwarder : public HttpBase,public Forwarder {
         HttpBase forwarder;
     protected:
-        int InitForwarder(const std::string &ip, unsigned int port) override;
+        int InitForwarder() override;
         CallbackReturnType ForwarderReadCallback() override;
         CallbackReturnType ForwarderAfterReadCallback() override;
         CallbackReturnType ForwarderWriteCallback() override;
@@ -29,12 +29,14 @@ namespace totoro {
         CallbackReturnType AfterReadCallback() override;
         CallbackReturnType WriteCallback() override;
         CallbackReturnType AfterWriteCallback() override;
+    public:
+        int Close() override;
     };
 
-    class HttpsForwarder : public HttpsBase,public Forwarder {
+    class HttpsReverseForwarder : public HttpsBase,public Forwarder {
         HttpsBase forwarder;
     protected:
-        int InitForwarder(const std::string &ip, unsigned int port) override;
+        int InitForwarder() override;
         CallbackReturnType ForwarderReadCallback() override;
         CallbackReturnType ForwarderAfterReadCallback() override;
         CallbackReturnType ForwarderWriteCallback() override;
@@ -43,6 +45,40 @@ namespace totoro {
         CallbackReturnType AfterReadCallback() override;
         CallbackReturnType WriteCallback() override;
         CallbackReturnType AfterWriteCallback() override;
+    public:
+        int Close() override;
+    };
+
+    class HttpForwardForwarder : public HttpBase,public Forwarder {
+        HttpBase forwarder;
+    protected:
+        int InitForwarder() override;
+        CallbackReturnType ForwarderReadCallback() override;
+        CallbackReturnType ForwarderAfterReadCallback() override;
+        CallbackReturnType ForwarderWriteCallback() override;
+        CallbackReturnType ForwarderAfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
+    public:
+        int Close() override;
+    };
+
+    class HttpsForwardForwarder : public HttpsBase,public Forwarder {
+        HttpsBase forwarder;
+    protected:
+        int InitForwarder() override;
+        CallbackReturnType ForwarderReadCallback() override;
+        CallbackReturnType ForwarderAfterReadCallback() override;
+        CallbackReturnType ForwarderWriteCallback() override;
+        CallbackReturnType ForwarderAfterWriteCallback() override;
+        CallbackReturnType ReadCallback() override;
+        CallbackReturnType AfterReadCallback() override;
+        CallbackReturnType WriteCallback() override;
+        CallbackReturnType AfterWriteCallback() override;
+    public:
+        int Close() override;
     };
 
 } // totoro
