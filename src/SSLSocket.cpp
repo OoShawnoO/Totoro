@@ -14,11 +14,6 @@ namespace totoro {
         SSL_load_error_strings();
         context = SSL_CTX_new(SSLv23_server_method());
 
-//        if(SSL_CTX_load_verify_locations(context, CA.c_str(), nullptr) <=0){
-//            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
-//            exit(-1);
-//        }
-
         if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
             LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
             exit(-1);

@@ -5,6 +5,8 @@
 #include "core/SSLSocket.h"
 #include "core/HttpBase.h"
 #include "core/HttpsBase.h"
+#include "core/Acceptor.h"
+#include "core/ForwardEpoller.h"
 
 namespace totoro {
 
@@ -18,6 +20,8 @@ namespace totoro {
     };
 
     class HttpReverseForwarder : public HttpBase,public Forwarder {
+        static const std::pair<std::string,unsigned short>& GetHttpForwardAddress(const std::string& port);
+
         HttpBase forwarder;
     protected:
         int InitForwarder() override;
@@ -34,6 +38,8 @@ namespace totoro {
     };
 
     class HttpsReverseForwarder : public HttpsBase,public Forwarder {
+        static const std::pair<std::string,unsigned short>& GetHttpsForwardAddress(const std::string& port);
+
         HttpsBase forwarder;
     protected:
         int InitForwarder() override;
@@ -80,6 +86,11 @@ namespace totoro {
     public:
         int Close() override;
     };
+
+    using HttpReverseServer = Acceptor<ForwardEpoller<HttpReverseForwarder>>;
+    using HttpsReverseServer = Acceptor<ForwardEpoller<HttpsReverseForwarder>>;
+    using HttpForwardServer = Acceptor<ForwardEpoller<HttpForwardForwarder>>;
+    using HttpsForwardServer = Acceptor<ForwardEpoller<HttpsForwardForwarder>>;
 
 } // totoro
 

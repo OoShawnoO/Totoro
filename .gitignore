@@ -35,3 +35,4 @@ thirdparty/*
 test/*
 !test/Test.h
 !test/test.png
+!test/forward.py

@@ -285,7 +285,6 @@ namespace totoro {
         virtual bool ConnectHandler();
 
     };
-
 } // totoro
 
 #endif //TOTORO_HTTPBASE_H

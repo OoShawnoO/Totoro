@@ -407,6 +407,8 @@ namespace totoro {
                             pos = data.rfind("\r\n\r\n");
                             if(pos == std::string::npos) return AGAIN;
                         }
+                    }else{
+                        return FAILED;
                     }
                     parseStatus = ParseBody;
                 }

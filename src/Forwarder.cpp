@@ -1,5 +1,4 @@
 #include <netdb.h>
-#include <iostream>
 #include "Forwarder.h"
 #include "fmt/format.h"
 
@@ -122,7 +121,10 @@ namespace totoro {
     }
 
     int HttpForwardForwarder::Close() {
-        return Connection::Close();
+        int forwardSock = forwarder.Sock();
+        forwarder.Close();
+        HttpBase::Close();
+        return forwardSock;
     }
     /* endregion */
 
@@ -259,18 +261,80 @@ namespace totoro {
     }
 
     int HttpsForwardForwarder::Close() {
-        return HttpsBase::Close();
+        int forwardSock = forwarder.Sock();
+        forwarder.Close();
+        HttpsBase::Close();
+        return forwardSock;
     }
 
     /* endregion */
 
     /* region HttpReverseForwarder */
+    const std::pair<std::string, unsigned short>&
+    HttpReverseForwarder::GetHttpForwardAddress(const std::string& port) {
+        static std::unordered_map<std::string,std::vector<std::pair<std::string,unsigned short>>> candidateServers;
+        static std::unordered_map<std::string,int> candidateServersConnectionNum;
+        static bool isInit = true;
+        if(isInit){
+            auto reverseProxyMap = Configure::Get()["HTTP_REVERSE_PROXY"];
+            for(auto items = reverseProxyMap.cbegin(); items != reverseProxyMap.cend(); items++) {
+                std::vector<std::pair<std::string,unsigned short>> servers;
+                for(const auto& item : items.value()){
+                    servers.emplace_back(item["ip"],item["port"]);
+                }
+                auto ret = candidateServers.insert({items.key(),std::move(servers)});
+                if(!ret.second){
+                    LOG_ERROR(HttpReverseForwarderChan,"candidate server insert failed");
+                    exit(-1);
+                }
+            }
+            isInit = false;
+        }
+        auto candidateServersIter = candidateServers.end();
+        if((candidateServersIter = candidateServers.find(port)) == candidateServers.end()){
+            LOG_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
+            exit(-1);
+        }
+        auto candidateNum = (candidateServersConnectionNum[port]++)%candidateServersIter->second.size();
+        return candidateServersIter->second[candidateNum];
+    }
+
     int HttpReverseForwarder::InitForwarder() {
-        return 0;
+        const auto& addr = GetHttpForwardAddress(std::to_string(ntohs(myAddr.sin_port)));
+        std::string ip = addr.first;
+        unsigned short port = addr.second;
+
+        auto hostEntry = gethostbyname(ip.c_str());
+        if(!hostEntry){
+            LOG_ERROR(HttpReverseForwarderChan,"can't parse ip address:" + ip);
+            return -1;
+        }
+        bool connected = false;
+        std::string tempIP;
+        for(int i=0;hostEntry->h_addr_list[i];i++){
+            tempIP = inet_ntoa(*(struct in_addr*)hostEntry->h_addr_list[i]);
+            if(forwarder.Connect(tempIP,port)){
+                connected = true;
+                break;
+            }
+        }
+        if(!connected){
+            LOG_ERROR(HttpReverseForwarderChan,"can't connect destination address");
+            return -1;
+        }
+        if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
+            LOG_ERROR(HttpReverseForwarderChan,"unable to add forward pair");
+            return -1;
+        }
+        if(EpollAdd(forwarder.Sock()) < 0){
+            LOG_ERROR(HttpReverseForwarderChan, strerror(errno));
+            return -1;
+        }
+        return 1;
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::ForwarderReadCallback() {
-        return Connection::SUCCESS;
+        return forwarder.ParseResponse();
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::ForwarderAfterReadCallback() {
@@ -282,37 +346,133 @@ namespace totoro {
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::ForwarderAfterWriteCallback() {
-        return Connection::SUCCESS;
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(sock,Write,true);
+        forwarder.ClearData();
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::ReadCallback() {
+        if(workSock == forwarder.Sock()){
+            return ForwarderReadCallback();
+        }
         return HttpBase::ReadCallback();
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::AfterReadCallback() {
-        return HttpBase::AfterReadCallback();
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterReadCallback();
+        }
+        if(forwarder.Sock() == BAD_FILE_DESCRIPTOR){
+            if(InitForwarder() < 0) return FAILED;
+        }
+        int ret = forwarder.SendAll(requestText);
+        if(ret < 0){
+            LOG_ERROR(HttpReverseForwarderChan,"forwarder send request failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(forwarder.Sock(),Read,true);
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::WriteCallback() {
-        return HttpBase::WriteCallback();
+        if(workSock == forwarder.Sock()){
+            return ForwarderWriteCallback();
+        }
+        int ret = SendAll(forwarder.responseText);
+        if(ret < 0){
+            LOG_ERROR(HttpReverseForwarderChan,"send response failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        return SUCCESS;
     }
 
     Connection::CallbackReturnType HttpReverseForwarder::AfterWriteCallback() {
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterWriteCallback();
+        }
         return HttpBase::AfterWriteCallback();
     }
 
     int HttpReverseForwarder::Close() {
-        return Connection::Close();
+        int forwardSock = forwarder.Sock();
+        forwarder.Close();
+        HttpBase::Close();
+        return forwardSock;
     }
     /* endregion */
 
     /* region HttpsReverseForwarder */
+    const std::pair<std::string, unsigned short> &
+    HttpsReverseForwarder::GetHttpsForwardAddress(const std::string &port) {
+        static std::unordered_map<std::string,std::vector<std::pair<std::string,unsigned short>>> candidateServers;
+        static std::unordered_map<std::string,int> candidateServersConnectionNum;
+        static bool isInit = true;
+        if(isInit){
+            auto reverseProxyMap = Configure::Get()["HTTPS_REVERSE_PROXY"];
+            for(auto items = reverseProxyMap.cbegin(); items != reverseProxyMap.cend(); items++) {
+                std::vector<std::pair<std::string,unsigned short>> servers;
+                for(const auto& item : items.value()){
+                    servers.emplace_back(item["ip"],item["port"]);
+                }
+                auto ret = candidateServers.insert({items.key(),std::move(servers)});
+                if(!ret.second){
+                    LOG_ERROR(HttpsReverseForwarderChan,"candidate server insert failed");
+                    exit(-1);
+                }
+            }
+            isInit = false;
+        }
+        auto candidateServersIter = candidateServers.end();
+        if((candidateServersIter = candidateServers.find(port)) == candidateServers.end()){
+            LOG_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
+            exit(-1);
+        }
+        auto candidateNum = (candidateServersConnectionNum[port]++)%candidateServersIter->second.size();
+        return candidateServersIter->second[candidateNum];
+    }
+
     int HttpsReverseForwarder::InitForwarder() {
-        return 0;
+        const auto& addr = GetHttpsForwardAddress(std::to_string(ntohs(myAddr.sin_port)));
+        std::string ip = addr.first;
+        unsigned short port = addr.second;
+
+        auto hostEntry = gethostbyname(ip.c_str());
+        if(!hostEntry){
+            LOG_ERROR(HttpsReverseForwarderChan,"can't parse ip address:" + ip);
+            return -1;
+        }
+        bool connected = false;
+        std::string tempIP;
+        for(int i=0;hostEntry->h_addr_list[i];i++){
+            tempIP = inet_ntoa(*(struct in_addr*)hostEntry->h_addr_list[i]);
+            if(forwarder.Connect(tempIP,port)){
+                connected = true;
+                break;
+            }
+        }
+        if(!connected){
+            LOG_ERROR(HttpsReverseForwarderChan,"can't connect destination address");
+            return -1;
+        }
+        if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
+            LOG_ERROR(HttpsReverseForwarderChan,"unable to add forward pair");
+            return -1;
+        }
+        if(EpollAdd(forwarder.Sock()) < 0){
+            LOG_ERROR(HttpsReverseForwarderChan, strerror(errno));
+            return -1;
+        }
+        return 1;
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::ForwarderReadCallback() {
-        return Connection::SUCCESS;
+        return forwarder.ParseResponse();
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::ForwarderAfterReadCallback() {
@@ -324,27 +484,71 @@ namespace totoro {
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::ForwarderAfterWriteCallback() {
-        return Connection::SUCCESS;
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(sock,Write,true);
+        forwarder.ClearData();
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::ReadCallback() {
+        if(workSock == forwarder.Sock()){
+            return ForwarderReadCallback();
+        }
         return HttpsBase::ReadCallback();
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::AfterReadCallback() {
-        return HttpsBase::AfterReadCallback();
+        if(!connection) {
+            return SUCCESS;
+        }
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterReadCallback();
+        }
+        if(forwarder.Sock() == BAD_FILE_DESCRIPTOR){
+            if(InitForwarder() < 0) {
+                LOG_ERROR(HttpsReverseForwarderChan,"init forwarder failed");
+                return FAILED;
+            }
+        }
+        int ret = forwarder.SendAll(requestText);
+        if(ret < 0){
+            LOG_ERROR(HttpsReverseForwarderChan,"forwarder send request failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        forwarder.parseStatus = RecvHeader;
+        RegisterNextEvent(forwarder.Sock(),Read,true);
+        return INTERRUPT;
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::WriteCallback() {
-        return HttpsBase::WriteCallback();
+        if(workSock == forwarder.Sock()){
+            return ForwarderWriteCallback();
+        }
+        int ret = SendAll(forwarder.responseText);
+        if(ret < 0){
+            LOG_ERROR(HttpsReverseForwarderChan,"send response failed");
+            return FAILED;
+        }else if(ret == 0){
+            return AGAIN;
+        }
+        return SUCCESS;
     }
 
     Connection::CallbackReturnType HttpsReverseForwarder::AfterWriteCallback() {
+        if(workSock == forwarder.Sock()){
+            return ForwarderAfterWriteCallback();
+        }
         return HttpsBase::AfterWriteCallback();
     }
 
     int HttpsReverseForwarder::Close() {
-        return HttpsBase::Close();
+        int forwardSock = forwarder.Sock();
+        forwarder.Close();
+        HttpsBase::Close();
+        return forwardSock;
     }
     /* endregion */
+
 } // totoro
