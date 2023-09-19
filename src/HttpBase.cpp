@@ -310,7 +310,7 @@ namespace totoro {
                         return FAILED;
                     }
                     size_t size;
-                    if((size =data.find("\r\n\r\n")) == std::string::npos) return AGAIN;
+                    if((size =data.rfind("\r\n\r\n")) == std::string::npos) return AGAIN;
                     requestText += data.substr(0,size + 4);
                     parseStatus = ParseHeader;
                 }
@@ -373,7 +373,7 @@ namespace totoro {
                         return FAILED;
                     }
                     size_t size;
-                    if((size =data.find("\r\n\r\n")) == std::string::npos) return AGAIN;
+                    if((size =data.rfind("\r\n\r\n")) == std::string::npos) return AGAIN;
                     responseText += data.substr(0,size + 4);
                     parseStatus = ParseHeader;
                 }
@@ -398,7 +398,15 @@ namespace totoro {
                         }
                     }
                     else if(responseHeader.GetTransferEncoding() == "chunked"){
-
+                        auto pos = data.rfind("\r\n\r\n");
+                        if(pos == std::string::npos) {
+                            if(!RecvAll(data,true)){
+                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                return FAILED;
+                            }
+                            pos = data.rfind("\r\n\r\n");
+                            if(pos == std::string::npos) return AGAIN;
+                        }
                     }
                     parseStatus = ParseBody;
                 }

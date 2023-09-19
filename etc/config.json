@@ -1,8 +1,8 @@
 {
-  "SERVER-KEY":"test/n1nja.xyz_bundle.pem",
+  "SERVER-KEY":"test/n1nja.xyz.key",
   "SERVER-CERT": "test/n1nja.xyz_bundle.crt",
   "CA-CERT": "test/n1nja.xyz.csr",
-  "CLIENT-KEY": "test/n1nja.xyz_bundle.pem",
+  "CLIENT-KEY": "test/n1nja.xyz.key",
   "CLIENT-CERT": "test/n1nja.xyz_bundle.crt",
   "LOG": {
     "channels" : {

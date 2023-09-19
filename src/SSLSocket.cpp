@@ -12,12 +12,12 @@ namespace totoro {
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
-        context = SSL_CTX_new(TLS_server_method());
+        context = SSL_CTX_new(SSLv23_server_method());
 
-        if(SSL_CTX_load_verify_locations(context, CA.c_str(), nullptr) <=0){
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
-            exit(-1);
-        }
+//        if(SSL_CTX_load_verify_locations(context, CA.c_str(), nullptr) <=0){
+//            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+//            exit(-1);
+//        }
 
         if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
             LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
@@ -49,25 +49,7 @@ namespace totoro {
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
-        context = SSL_CTX_new(TLS_client_method());
-
-        //SSL双向认证
-        SSL_CTX_set_verify(context, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
-        SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
-        SSL_CTX_set_min_proto_version(context, TLS1_1_VERSION);
-
-        if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
-            exit(-1);
-        }
-        if(SSL_CTX_use_PrivateKey_file(context,PRIVATE.c_str(),SSL_FILETYPE_PEM)<=0){
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
-            exit(-1);
-        }
-        if(SSL_CTX_check_private_key(context)<=0) {
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
-            exit(-1);
-        }
+        context = SSL_CTX_new(SSLv23_client_method());
     }
 
     SSLClientContext::~SSLClientContext() {
