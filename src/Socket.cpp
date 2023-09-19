@@ -94,6 +94,7 @@ namespace totoro {
             needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
             if((hadRecv = ::recv(sock,buffer,needRecv,flag)) <= 0){
                 if(errno == EAGAIN || errno == EWOULDBLOCK){
+                    if(data.empty()) continue;
                     isNew = true;
                     return 0;
                 }

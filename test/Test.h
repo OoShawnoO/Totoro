@@ -154,7 +154,7 @@ void TEST_UdpSendRecvFile(){
 void TEST_Acceptor(){
     bool isStop{false};
     const auto& conf = Configure::Get()["SERVER"][0];
-    Acceptor<Epoller<HttpsBase>> acceptor(isStop,conf);
+    Acceptor<Epoller<HttpBase>> acceptor(isStop,conf);
     acceptor.Run();
 }
 

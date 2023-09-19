@@ -440,10 +440,10 @@ namespace totoro {
                     if(requestHeader.GetMethod() != POST
                        && requestHeader.GetMethod() != PATCH
                        && requestHeader.GetMethod() != PUT){
-                        parseStatus = ParseOk;
+                        parseStatus = SendOk;
                         continue;
                     }else{
-                        parseStatus = RecvBody;
+                        parseStatus = SendBody;
                     }
                     requestText.clear();
                 }

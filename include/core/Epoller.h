@@ -35,10 +35,10 @@ namespace totoro {
         ConnectionMap connectionMap                                     {};
         ForwardCandidateMap forwardCandidateMap                         {};
 
-        void NoneBlock(SocketID socketId) {
+        int NoneBlock(SocketID socketId) {
             int option = fcntl(socketId,F_GETFL);
             int newOption = option | O_NONBLOCK;
-            fcntl(socketId,newOption);
+            return fcntl(socketId,newOption);
         }
         int EpollAdd(SocketID socketId,bool isListen = false) {
             epoll_event ev{};
@@ -46,7 +46,12 @@ namespace totoro {
             ev.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
             ev.events = (edgeTriggle ? ev.events | EPOLLET : ev.events);
             ev.events = (oneShot && !isListen ? ev.events | EPOLLONESHOT : ev.events);
-            if(noneBlock) NoneBlock(socketId);
+            if(noneBlock) {
+                if(NoneBlock(socketId) < 0){
+                    LOG_ERROR(EpollerChan, "set socket none block failed:" + std::string(strerror(errno)));
+                    return -1;
+                }
+            }
             return epoll_ctl(id,EPOLL_CTL_ADD,socketId,&ev);
         }
         int EpollMod(SocketID socketId, uint32_t ev) {

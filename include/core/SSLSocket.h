@@ -29,11 +29,14 @@ namespace totoro {
     class SSLSocket : public virtual TCPSocket{
 
         static SSLContext& GetContext();
-        static SSLClientContext& GetClientContext();
+
         int sendImpl(const char *data) override;
         int recvImpl(std::string &data) override;
     protected:
         ::SSL* connection                       {nullptr};
+
+        static SSLClientContext& GetClientContext();
+
     public:
         int InitSSL();
         ~SSLSocket() override;

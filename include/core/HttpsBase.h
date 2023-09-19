@@ -9,7 +9,7 @@ namespace totoro {
     /**
      * @brief @brief 负责HTTPS连接相关事务 / Response HTTPS connection transactions
      */
-    class HttpsBase : public HttpBase,public SSLSocket{
+    class HttpsBase : public virtual HttpBase,public SSLSocket{
     public:
         int Init(const ConnectionInitParameter &connectionInitParameter) override;
 

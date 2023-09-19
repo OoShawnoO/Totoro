@@ -95,21 +95,6 @@ namespace totoro {
         CallbackReturnType WriteCallback() override;
         CallbackReturnType AfterWriteCallback() override;
     public:
-        CallbackReturnType ParseRequest();
-        CallbackReturnType ParseResponse();
-        CallbackReturnType SendRequest();
-        CallbackReturnType SendResponse();
-        HttpParseStatus parseStatus                      {RecvHeader};
-
-        std::string requestText;
-
-        std::string responseText;
-
-        void Clear();
-
-        virtual void RenderStatus(HttpStatus status);
-    protected:
-        // 请求头信息 / Request Header Information
         struct RequestHeader{
         private:
             // HTTP版本 / Http Version
@@ -171,8 +156,7 @@ namespace totoro {
             std::string toString();
             // 清除 / Clear
             void Clear();
-        }requestHeader;
-        // 请求体信息 / Request Body Information
+        };
         struct RequestBody{
             friend struct RequestHeader;
         private:
@@ -211,8 +195,7 @@ namespace totoro {
             // 字符串化 / To string
             std::string toString(const RequestHeader& header) const;
             void Clear();
-        }requestBody;
-        // 响应头信息 / Response Header Information
+        };
         struct ResponseHeader{
         private:
             // HTTP版本 / Http Version
@@ -246,8 +229,7 @@ namespace totoro {
             // 字符串化 / To string
             std::string toString();
             void Clear();
-        }responseHeader;
-        // 响应体信息 / Response Body Information
+        };
         struct ResponseBody{
         private:
             // 静态资源文件路径 / Static Resource Path
@@ -264,7 +246,30 @@ namespace totoro {
             // 获取传输数据 / Get transport data
             const std::string& GetData();
             void Clear();
-        }responseBody;
+        };
+
+        CallbackReturnType ParseRequest();
+        CallbackReturnType ParseResponse();
+        CallbackReturnType SendRequest();
+        CallbackReturnType SendResponse();
+        HttpParseStatus parseStatus                      {RecvHeader};
+
+        std::string requestText;
+
+        std::string responseText;
+
+        void Clear();
+
+        virtual void RenderStatus(HttpStatus status);
+    protected:
+        // 请求头信息 / Request Header Information
+        RequestHeader requestHeader;
+        // 请求体信息 / Request Body Information
+        RequestBody requestBody;
+        // 响应头信息 / Response Header Information
+        ResponseHeader responseHeader;
+        // 响应体信息 / Response Body Information
+        ResponseBody responseBody;
         // Get 方法处理 / Get Request Handler
         virtual bool GetHandler();
         // Post 方法处理 / Post Request Handler
