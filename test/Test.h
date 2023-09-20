@@ -10,6 +10,7 @@
 #include "core/Epoller.h"
 #include "core/HttpBase.h"
 #include "core/HttpsBase.h"
+#include "HttpClient.h"
 
 #define ASSERT(data,right) do{      \
     if(data == right){              \
@@ -23,6 +24,12 @@
 #define SENDER_PORT 9999
 #define RECVER_IP "127.0.0.1"
 #define RECVER_PORT 1234
+#define TEST_HTTP_URL "http://www.baidu.com/"
+#define TEST_HTTPS_URL "https://www.baidu.com/"
+#define PROXY_IP "127.0.0.1"
+#define PROXY_PORT 7890
+#define TEST_UNABLE_URL_WITHOUT_HTTP_PROXY "http://google.com/"
+#define TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY "https://google.com/"
 
 using namespace totoro;
 
@@ -149,6 +156,52 @@ void TEST_UdpSendRecvFile(){
     ASSERT(s1.st_size,s2.st_size);
     t.join();
     close(f1);close(f2);
+}
+
+void TEST_HttpClient_HttpGet_Timeout(){
+    HttpRequestParameters params;
+    params.timeout = 500;
+    params.url = TEST_UNABLE_URL_WITHOUT_HTTP_PROXY;
+    HttpClient client;
+    ASSERT(client.Get(params),false);
+}
+
+void TEST_HttpClient_HttpsGet_Timeout(){
+    HttpRequestParameters params;
+    params.timeout = 500;
+    params.url = TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY;
+    HttpClient client;
+    ASSERT(client.Get(params),false);
+}
+
+void TEST_HttpClient_HttpGet_Proxy(){
+    HttpRequestParameters params;
+    params.proxies = {{"http",{PROXY_IP,PROXY_PORT}}};
+    params.url = TEST_HTTP_URL;
+    HttpClient client;
+    ASSERT(client.Get(params),true);
+}
+
+void TEST_HttpClient_HttpsGet_Proxy(){
+    HttpRequestParameters params;
+    params.proxies = {{"https",{PROXY_IP,PROXY_PORT}}};
+    params.url = TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY;
+    HttpClient client;
+    ASSERT(client.Get(params),true);
+}
+
+void TEST_HttpClient_HttpGet(){
+    HttpRequestParameters params;
+    params.url = TEST_HTTP_URL;
+    HttpClient client;
+    ASSERT(client.Get(params),true);
+}
+
+void TEST_HttpClient_HttpsGet(){
+    HttpRequestParameters params;
+    params.url = TEST_HTTPS_URL;
+    HttpClient client;
+    ASSERT(client.Get(params),true);
 }
 
 void TEST_Acceptor(){

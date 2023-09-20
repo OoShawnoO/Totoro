@@ -221,7 +221,7 @@ namespace totoro {
 
     Connection::CallbackReturnType HttpsForwardForwarder::WriteCallback() {
         if(!connection) {
-            int ret = TCPSocket::SendAll(fmt::format("{} 200 Connection Established\r\n\r\n",HttpVersionMap.at(requestHeader.GetVersion())));
+            int ret = TCPSocket::SendAll(fmt::format("{} 200 Connection established\r\n\r\n",HttpVersionMap.at(requestHeader.GetVersion())));
             if(ret < 0){
                 LOG_ERROR(HttpForwardForwarderChan,"send response failed");
                 return FAILED;

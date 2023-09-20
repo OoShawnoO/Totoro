@@ -214,8 +214,12 @@ namespace totoro {
             size_t GetContentLength() const;
             // 获取传输编码 / Get transfer encoding
             std::string GetTransferEncoding() const;
+            // 获取HTTP版本 / Get HTTP version
+            HttpVersion GetVersion() const;
             // 设置HTTP版本 / Set HTTP version
             void SetVersion(HttpVersion version);
+            // 获取状态码 / Get Status
+            HttpStatus GetStatus() const;
             // 设置状态码 / Set Status
             void SetStatus(HttpStatus status);
             // 设置内容类型 / Set content type
@@ -224,6 +228,8 @@ namespace totoro {
             void SetContentLength(size_t length);
             // 设置cookie / Set cookie
             void SetCookie(const std::string& cookieKey,const std::string& cookieValue);
+            // 获取字段 / Get fields
+            const HttpHeaderFieldsType& GetFields() const;
             // 设置字段 / Set field
             void SetField(const std::string& fieldKey,const std::vector<std::string>& fieldValues);
             // 字符串化 / To string
@@ -240,11 +246,11 @@ namespace totoro {
             // 设置文件资源路径 / Set resource path
             void SetResourcePath(const std::string& resourcePath);
             // 获取文件资源路径 / Get resource path
-            const std::string& GetResourcePath();
+            const std::string& GetResourcePath() const;
             // 设置传输数据 / Set transport data
             void SetData(std::string& data);
             // 获取传输数据 / Get transport data
-            const std::string& GetData();
+            const std::string& GetData() const;
             void Clear();
         };
 
@@ -255,8 +261,8 @@ namespace totoro {
         HttpParseStatus parseStatus                      {RecvHeader};
 
         std::string requestText;
-
         std::string responseText;
+        size_t responseHeaderEnd;
 
         void Clear();
 

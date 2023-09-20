@@ -91,6 +91,10 @@ namespace totoro {
             if((hadRecv = SSL_read(connection,buffer,(int)needRecv)) <= 0){
                 if(hadRecv == 0) {
                     LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    if(readTotalBytes == SIZE_MAX){
+                        shutdown(sock,SHUT_RDWR);
+                        return 0;
+                    }
                     return -1;
                 }
                 LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));

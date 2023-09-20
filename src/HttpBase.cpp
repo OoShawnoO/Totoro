@@ -375,6 +375,7 @@ namespace totoro {
                     size_t size;
                     if((size =data.rfind("\r\n\r\n")) == std::string::npos) return AGAIN;
                     responseText += data.substr(0,size + 4);
+                    responseHeaderEnd = responseText.size();
                     parseStatus = ParseHeader;
                 }
                 case ParseHeader : {
@@ -408,12 +409,13 @@ namespace totoro {
                             if(pos == std::string::npos) return AGAIN;
                         }
                     }else{
-                        return FAILED;
+                        return SUCCESS;
                     }
                     parseStatus = ParseBody;
                 }
                 case ParseBody : {
                     responseText += data;
+                    responseBody.SetData(data);
                     parseStatus = ParseOk;
                 }
                 case ParseOk : {
@@ -982,6 +984,12 @@ namespace totoro {
         return field->second[0];
     }
 
+    HttpVersion HttpBase::ResponseHeader::GetVersion() const { return version; }
+
+    HttpStatus HttpBase::ResponseHeader::GetStatus() const { return status; }
+
+    const HttpHeaderFieldsType &HttpBase::ResponseHeader::GetFields() const { return fields; }
+
     /* ResponseBody Impl */
     void HttpBase::ResponseBody::SetResourcePath(const std::string &_resourcePath) {
         resourcePath = _resourcePath;
@@ -994,9 +1002,9 @@ namespace totoro {
         data.clear();
     }
 
-    const std::string &HttpBase::ResponseBody::GetResourcePath() { return resourcePath; }
+    const std::string &HttpBase::ResponseBody::GetResourcePath() const { return resourcePath; }
 
-    const std::string &HttpBase::ResponseBody::GetData() { return data; }
+    const std::string &HttpBase::ResponseBody::GetData() const { return data; }
 
     /* HttpBase Protected Impl */
     bool HttpBase::GetHandler() {

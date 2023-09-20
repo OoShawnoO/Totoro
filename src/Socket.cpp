@@ -98,6 +98,11 @@ namespace totoro {
                     isNew = true;
                     return 0;
                 }
+                if(hadRecv == 0 && readTotalBytes == SIZE_MAX) {
+                    shutdown(sock,SHUT_RDWR);
+                    isNew = true;
+                    return 0;
+                }
                 LOG_ERROR(SocketChan, strerror(errno));
                 return -1;
             }
