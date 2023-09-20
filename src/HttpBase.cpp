@@ -435,6 +435,16 @@ namespace totoro {
         while(true){
             switch(parseStatus) {
                 case SendHeader : {
+                    if(requestHeader.GetMethod() != POST
+                       && requestHeader.GetMethod() != PATCH
+                       && requestHeader.GetMethod() != PUT){
+                        requestBodyText.clear();
+                    }else{
+                        if(requestBodyText.empty()){
+                            requestBodyText = requestBody.toString(requestHeader);
+                            requestHeader.SetField("Content-Length", {std::to_string(requestBodyText.size())});
+                        }
+                    }
                     if(requestText.empty()) requestText = requestHeader.toString();
                     ret = SendAll(requestText);
                     if(ret == -1) return FAILED;
@@ -450,8 +460,7 @@ namespace totoro {
                     requestText.clear();
                 }
                 case SendBody : {
-                    if(requestText.empty()) requestText = requestBody.toString(requestHeader);
-                    ret = SendAll(requestText);
+                    ret = SendAll(requestBodyText);
                     if(ret == -1) return FAILED;
                     else if(ret == 0) return AGAIN;
                     parseStatus = SendOk;
@@ -845,10 +854,8 @@ namespace totoro {
                 else requestBodyData += '&';
                 requestBodyData += fmt::format("{}={}",formItem.first,formItem.second);
             }
-            requestBodyData += "\r\n";
         }else if(CT == "application/json"){
             requestBodyData += nlohmann::to_string(json);
-            requestBodyData += "\r\n";
         }
         return requestBodyData;
     }

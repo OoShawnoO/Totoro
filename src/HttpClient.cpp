@@ -7,36 +7,26 @@
 const std::string HttpClientChan = "HttpClient";
 namespace totoro {
 
-    bool HttpClientImpl::connectToHost(const std::string& addr,unsigned short port,bool isProxy) {
-        auto host = gethostbyname(addr.c_str());
-        if(!host) {
-            LOG_ERROR(HttpClientChan,"failed to get host name");
-            return false;
-        }
-        bool connected = false;
-        std::string tempIP;
-        for(int i=0;host->h_addr_list[i];i++){
-            tempIP = inet_ntoa(*(struct in_addr*)host->h_addr_list[i]);
-            if(Connect(tempIP,port)){ connected = true;break; }
-        }
-        if(!connected) {
-            LOG_ERROR(HttpClientChan,"failed to connect host");
-            return false;
-        }
-        return true;
-    }
+#define TIMEOUT(function,_timeout) do {                                 \
+    std::future<bool> result = std::async(std::launch::async,[&]{       \
+        return function;                                                \
+    });                                                                 \
+    if(timeout > 0){                                                    \
+        std::chrono::milliseconds to(_timeout);                         \
+        if(result.wait_for(to) == std::future_status::timeout){         \
+            LOG_ERROR(HttpClientChan,"timeout");                        \
+            shutdown(sock,SHUT_RDWR);                                   \
+            return false;                                               \
+        }                                                               \
+    }                                                                   \
+    if(!result.get()) return false;                                     \
+}while(0)
 
     bool
-    HttpClientImpl::Get(
-    ProtoType                                                                       type,
-    const std::string                                                               &addr,
+    HttpClientImpl::connectToHost(
+    const std::string&                                                              addr,
     unsigned short                                                                  port,
-    const std::string                                                               &url,
-    const HttpHeaderFieldsType                                                      &headers,
-    const HttpParameterType                                                         &parameters,
-    const HttpCookieType                                                            &cookies,
-    const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
-    int                                                                             timeout)
+    const std::unordered_map<std::string,std::pair<std::string,unsigned short>>     &proxies)
     {
         std::string realAddr = addr;
         unsigned short realPort = port;
@@ -47,19 +37,31 @@ namespace totoro {
             requestHeader.SetField("Host",{fmt::format("{}:{}",addr,port)});
         }
 
-        std::future<bool> result = std::async(std::launch::async,[&]{
-            return connectToHost(realAddr,realPort);
-        });
-        if(timeout > 0){
-            std::chrono::milliseconds to(timeout);
-            if(result.wait_for(to) == std::future_status::timeout){
-                LOG_ERROR(HttpClientChan,"timeout");
-                shutdown(sock,SHUT_RDWR);
-                return false;
-            }
+        auto host = gethostbyname(realAddr.c_str());
+        if(!host) {
+            LOG_ERROR(HttpClientChan,"failed to get host name");
+            return false;
         }
-        if(!result.get()) return false;
+        bool connected = false;
+        std::string tempIP;
+        for(int i=0;host->h_addr_list[i];i++){
+            tempIP = inet_ntoa(*(struct in_addr*)host->h_addr_list[i]);
+            if(Connect(tempIP,realPort)){ connected = true;break; }
+        }
+        if(!connected) {
+            LOG_ERROR(HttpClientChan,"failed to connect host");
+            return false;
+        }
+        return true;
+    }
 
+    bool
+    HttpClientImpl::processGetRequestParameters(
+    const std::string                                                               &url,
+    const HttpHeaderFieldsType                                                      &headers,
+    const HttpParameterType                                                         &parameters,
+    const HttpCookieType                                                            &cookies)
+    {
         std::string realUrl = url;
         bool isFirst = false;
         if(url.find('?') == std::string::npos) {
@@ -94,24 +96,83 @@ namespace totoro {
         }
 
         parseStatus = SendHeader;
-        decltype(SUCCESS) status;
+        return true;
+    }
 
-        result = std::async(std::launch::async,[&]{
-            while((status = SendRequest()) == AGAIN){}
-            if(status == FAILED) return false;
-            while((status = ParseResponse()) == AGAIN){}
-            if(status == FAILED) return false;
-            return true;
-        });
-        if(timeout > 0){
-            std::chrono::milliseconds to(timeout);
-            if(result.wait_for(to) == std::future_status::timeout){
-                LOG_ERROR(HttpClientChan,"timeout");
-                shutdown(sock,SHUT_RDWR);
-                return false;
+    bool HttpClientImpl::processPostRequestParameters(
+            const std::string                                                               &url,
+            const HttpHeaderFieldsType                                                      &headers,
+            const HttpCookieType                                                            &cookies,
+            const HttpMultiPartType                                                         &files,
+            const HttpFormType                                                              &forms,
+            const nlohmann::json                                                            &json)
+    {
+        requestHeader.SetMethod(POST);
+        requestHeader.SetVersion(HTTP11);
+        requestHeader.SetUrl(url);
+        for(const auto& header : headers ){
+            requestHeader.SetField(header.first,header.second);
+        }
+        std::string cookieStr;
+        bool isFirst = true;
+        for(const auto& cookie : cookies ){
+            if(isFirst) {
+                isFirst = false;
+            }else { cookieStr += ';'; }
+            cookieStr += fmt::format("{}={}",cookie.first,cookie.second);
+        }
+        if(!cookieStr.empty()) {
+            requestHeader.SetField("Cookies", {cookieStr});
+        }
+        if(!files.empty()) {
+            requestHeader.SetField("Content-Type", {"multipart/form-data"});
+            for(const auto& file : files) {
+                requestBody.SetFilesFieldData(file.first,file.second);
             }
         }
-        if(!result.get()) return false;
+        else if(!forms.empty()) {
+            requestHeader.SetField("Content-Type", {"application/x-www-form-urlencoded"});
+            requestBody.SetForm(forms);
+        }
+        else if(!json.empty()) {
+            requestHeader.SetField("Content-Type", {"application/json"});
+            requestBody.SetJson(json);
+        }
+        else return false;
+
+        parseStatus = SendHeader;
+        return true;
+    }
+
+    bool
+    HttpClientImpl::processRequestResponse()
+    {
+        decltype(SUCCESS) status;
+        while((status = SendRequest()) == AGAIN){}
+        if(status == FAILED) return false;
+        while((status = ParseResponse()) == AGAIN){}
+        if(status == FAILED) return false;
+        return true;
+    }
+
+    bool
+    HttpClientImpl::Get(
+    ProtoType                                                                       type,
+    const std::string                                                               &addr,
+    unsigned short                                                                  port,
+    const std::string                                                               &url,
+    const HttpHeaderFieldsType                                                      &headers,
+    const HttpParameterType                                                         &parameters,
+    const HttpCookieType                                                            &cookies,
+    const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
+    int                                                                             timeout)
+    {
+        TIMEOUT(connectToHost(addr,port,proxies),timeout);
+
+        processGetRequestParameters(url,headers,parameters,cookies);
+
+        TIMEOUT(processRequestResponse(),timeout);
+
         HttpBase::Close();
         return true;
     }
@@ -126,52 +187,62 @@ namespace totoro {
     const HttpCookieType                                                            &cookies,
     const HttpMultiPartType                                                         &files,
     const HttpFormType                                                              &forms,
+    const nlohmann::json                                                            &json,
     const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
     int                                                                             timeout)
     {
-        return false;
+        TIMEOUT(connectToHost(addr,port,proxies),timeout);
+        if(!processPostRequestParameters(url,headers,cookies,files,forms,json)) return false;
+        TIMEOUT(processRequestResponse(),timeout);
+        HttpBase::Close();
+        return true;
     }
 
-    const HttpBase::RequestHeader &HttpClientImpl::GetRequestHeader() {
-        return requestHeader;
-    }
+    const HttpBase::RequestHeader &HttpClientImpl::GetRequestHeader() { return requestHeader; }
 
-    const HttpBase::RequestBody &HttpClientImpl::GetRequestBody() {
-        return requestBody;
-    }
+    const HttpBase::RequestBody &HttpClientImpl::GetRequestBody() { return requestBody; }
 
-    const HttpBase::ResponseHeader &HttpClientImpl::GetResponseHeader() {
-        return responseHeader;
-    }
+    const HttpBase::ResponseHeader &HttpClientImpl::GetResponseHeader() { return responseHeader; }
 
-    const HttpBase::ResponseBody &HttpClientImpl::GetResponseBody() {
-        return responseBody;
-    }
+    const HttpBase::ResponseBody &HttpClientImpl::GetResponseBody() { return responseBody; }
 
-    const std::string &HttpClientImpl::GetRequestText() const {
-        return requestText;
-    }
+    const std::string &HttpClientImpl::GetRequestText() const { return requestText; }
 
-    const std::string &HttpClientImpl::GetResponseText() const {
-        return responseText;
-    }
+    const std::string &HttpClientImpl::GetResponseText() const { return responseText; }
 
-    std::string HttpClientImpl::GetResponseContent() const {
-        return responseText.substr(responseHeaderEnd);
-    }
+    std::string HttpClientImpl::GetResponseContent() const { return responseText.substr(responseHeaderEnd); }
 
-    bool HttpsClientImpl::connectToHost(const std::string &addr, unsigned short port,bool isProxy) {
-        auto host = gethostbyname(addr.c_str());
+
+    /* -------------------------- HttpsClient ------------------------------- */
+
+
+    bool HttpsClientImpl::connectToHost(
+    const std::string                                                               &addr,
+    unsigned short                                                                  port,
+    const std::unordered_map<std::string,std::pair<std::string,unsigned short>>     &proxies)
+    {
+        connectAddr = addr;
+        connectPort = port;
+        std::string realAddr = addr;
+        unsigned short realPort = port;
+        auto proxy = proxies.begin();
+
+        if((proxy = proxies.find("https")) != proxies.end()){
+            realAddr = proxy->second.first;
+            realPort = proxy->second.second;
+        }
+
+        auto host = gethostbyname(realAddr.c_str());
         if(!host) {
             LOG_ERROR(HttpClientChan,"failed to get host name");
             return false;
         }
         bool connected = false;
-        if(isProxy) {
+        if(proxy != proxies.end()) {
             std::string tempIP;
             for (int i = 0; host->h_addr_list[i]; i++) {
                 tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);
-                if (TCPSocket::Connect(tempIP, port)) {
+                if (TCPSocket::Connect(tempIP, realPort)) {
                     connected = true;
                     break;
                 }
@@ -227,112 +298,60 @@ namespace totoro {
         return true;
     }
 
-    bool HttpsClientImpl::Get(
-            ProtoType                                                                       type,
-            const std::string                                                               &addr,
-            unsigned short                                                                  port,
-            const std::string                                                               &url,
-            const HttpHeaderFieldsType                                                      &headers,
-            const HttpParameterType                                                         &parameters,
-            const HttpCookieType                                                            &cookies,
-            const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
-            int                                                                             timeout)
+    bool HttpsClientImpl::processRequestResponse()
     {
-        connectAddr = addr;
-        connectPort = port;
-        std::string realAddr = addr;
-        unsigned short realPort = port;
-        auto proxy = proxies.begin();
+        return HttpClientImpl::processRequestResponse();
+    }
 
-        if((proxy = proxies.find("https")) != proxies.end()){
-            realAddr = proxy->second.first;
-            realPort = proxy->second.second;
-        }
+    bool
+    HttpsClientImpl::Get(
+    ProtoType                                                                       type,
+    const std::string                                                               &addr,
+    unsigned short                                                                  port,
+    const std::string                                                               &url,
+    const HttpHeaderFieldsType                                                      &headers,
+    const HttpParameterType                                                         &parameters,
+    const HttpCookieType                                                            &cookies,
+    const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
+    int                                                                             timeout)
+    {
+        TIMEOUT(connectToHost(addr,port,proxies),timeout);
 
-        std::future<bool> result = std::async(std::launch::async,[&]{
-            return connectToHost(realAddr,realPort,proxies.find("https") != proxies.end());
-        });
-        if(timeout > 0){
-            std::chrono::milliseconds to(timeout);
-            if(result.wait_for(to) == std::future_status::timeout){
-                LOG_ERROR(HttpClientChan,"timeout");
-                shutdown(sock,SHUT_RDWR);
-                return false;
-            }
-        }
-        if(!result.get()) return false;
+        processGetRequestParameters(url,headers,parameters,cookies);
 
-        std::string realUrl = url;
-        bool isFirst = false;
-        if(url.find('?') == std::string::npos) {
-            isFirst = true;
-        }
-        for(const auto& parameter : parameters ){
-            if(isFirst) {
-                realUrl += '?';
-                isFirst = false;
-            }
-            else realUrl += '&';
-            realUrl += fmt::format("{}={}",parameter.first,parameter.second);
-        }
-
-        requestHeader.SetMethod(GET);
-        requestHeader.SetVersion(HTTP11);
-        requestHeader.SetUrl(realUrl);
-
-        for(const auto& header : headers ){
-            requestHeader.SetField(header.first,header.second);
-        }
-        std::string cookieStr;
-        isFirst = true;
-        for(const auto& cookie : cookies ){
-            if(isFirst) {
-                isFirst = false;
-            }else { cookieStr += ';'; }
-            cookieStr += fmt::format("{}={}",cookie.first,cookie.second);
-        }
-        if(!cookieStr.empty())
-            requestHeader.SetField("Cookies",{cookieStr});
-
-        parseStatus = SendHeader;
-        decltype(SUCCESS) status;
-        result = std::async(std::launch::async,[&]{
-            while((status = SendRequest()) == AGAIN){}
-            if(status == FAILED) return false;
-            while((status = ParseResponse()) == AGAIN){}
-            if(status == FAILED) return false;
-            return true;
-        });
-        if(timeout > 0){
-            std::chrono::milliseconds to(timeout);
-            if(result.wait_for(to) == std::future_status::timeout){
-                LOG_ERROR(HttpClientChan,"timeout");
-                shutdown(sock,SHUT_RDWR);
-                return false;
-            }
-        }
-        if(!result.get()) return false;
+        TIMEOUT(processRequestResponse(),timeout);
 
         HttpsBase::Close();
         return true;
     }
 
-    bool HttpsClientImpl::Post(
-            ProtoType                                                                       type,
-            const std::string                                                               &addr,
-            unsigned short                                                                  port,
-            const std::string                                                               &url,
-            const HttpHeaderFieldsType                                                      &headers,
-            const HttpCookieType                                                            &cookies,
-            const HttpMultiPartType                                                         &files,
-            const HttpFormType                                                              &forms,
-            const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
-            int                                                                             timeout)
+    bool
+    HttpsClientImpl::Post(
+    ProtoType                                                                       type,
+    const std::string                                                               &addr,
+    unsigned short                                                                  port,
+    const std::string                                                               &url,
+    const HttpHeaderFieldsType                                                      &headers,
+    const HttpCookieType                                                            &cookies,
+    const HttpMultiPartType                                                         &files,
+    const HttpFormType                                                              &forms,
+    const nlohmann::json                                                            &json,
+    const std::unordered_map<std::string, std::pair<std::string,unsigned short>>    &proxies,
+    int                                                                             timeout)
     {
-        return HttpClientImpl::Post(type, addr, port, url, headers, cookies, files, forms, proxies, timeout);
+        TIMEOUT(connectToHost(addr,port,proxies),timeout);
+        if(!processPostRequestParameters(url,headers,cookies,files,forms,json)) return false;
+        TIMEOUT(processRequestResponse(),timeout);
+        HttpsBase::Close();
+        return true;
     }
 
-    bool HttpClient::parseUrl(const std::string &url) {
+
+    /* ----------------------------- HttpClient ------------------------------------*/
+
+
+    bool
+    HttpClient::parseUrl(const std::string &url) {
         std::string proto = url.substr(0,5);
         std::string tempUrl,tempAddr;
         if(proto == "http:") {
@@ -369,31 +388,60 @@ namespace totoro {
         if(!parseUrl(params.url)) return false;
         switch(type) {
             case HTTP : {
-                return http.Get(type,requestAddr,port,requestUrl,
-                                params.headers,params.parameters,
-                                params.cookies,params.proxies,params.timeout);
+                return http.Get(type,
+                                requestAddr,
+                                port,
+                                requestUrl,
+                                params.headers,
+                                params.parameters,
+                                params.cookies,
+                                params.proxies,
+                                params.timeout);
             }
             case HTTPS : {
-                return https.Get(type,requestAddr,port,requestUrl,
-                                 params.headers,params.parameters,
-                                 params.cookies,params.proxies,params.timeout);
+                return https.Get(type,
+                                 requestAddr,
+                                 port,
+                                 requestUrl,
+                                 params.headers,
+                                 params.parameters,
+                                 params.cookies,
+                                 params.proxies,
+                                 params.timeout);
             }
         }
         return false;
     }
 
-    bool HttpClient::Post(const HttpRequestParameters& params) {
+    bool
+    HttpClient::Post(const HttpRequestParameters& params) {
         if(!parseUrl(params.url)) return false;
         switch(type) {
             case HTTP : {
-                return http.Post(type,requestAddr,port,requestUrl,
-                                 params.headers,params.cookies,params.files,
-                                 params.forms,params.proxies,params.timeout);
+                return http.Post(type,
+                                 requestAddr,
+                                 port,
+                                 requestUrl,
+                                 params.headers,
+                                 params.cookies,
+                                 params.files,
+                                 params.forms,
+                                 params.json,
+                                 params.proxies,
+                                 params.timeout);
             }
             case HTTPS : {
-                return https.Post(type,requestAddr,port,requestUrl,
-                                  params.headers,params.cookies,params.files,
-                                  params.forms,params.proxies,params.timeout);
+                return https.Post(type,
+                                  requestAddr,
+                                  port,
+                                  requestUrl,
+                                  params.headers,
+                                  params.cookies,
+                                  params.files,
+                                  params.forms,
+                                  params.json,
+                                  params.proxies,
+                                  params.timeout);
             }
         }
         return false;

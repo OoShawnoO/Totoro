@@ -261,6 +261,7 @@ namespace totoro {
         HttpParseStatus parseStatus                      {RecvHeader};
 
         std::string requestText;
+        std::string requestBodyText;
         std::string responseText;
         size_t responseHeaderEnd;
 
