@@ -1,9 +1,9 @@
 #ifndef TOTORO_SSLSOCKET_H
 #define TOTORO_SSLSOCKET_H
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include "Socket.h"
+#include <openssl/ssl.h>        /* SSL */
+#include <openssl/err.h>        /* SSL */
+#include "Socket.h"             /* Socket */
 
 namespace totoro {
     /**

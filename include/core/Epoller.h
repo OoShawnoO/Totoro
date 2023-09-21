@@ -159,14 +159,20 @@ namespace totoro {
             }
         }
     public:
-        explicit Epoller(bool& _isStop,IPFilter* _filter = nullptr,
-                         bool _et = false,bool _oneShot = true,bool _noneBlock = true):
-        isStop(_isStop),filter(_filter),edgeTriggle(_et),
+        explicit Epoller(
+                bool&       _isStop,
+                IPFilter*   _filter                           = nullptr,
+                bool        _et                               = false,
+                bool        _oneShot                          = true,
+                bool        _noneBlock                        = true
+        ):isStop(_isStop),filter(_filter),edgeTriggle(_et),
         oneShot(_oneShot),noneBlock(_noneBlock){
             if((id =epoll_create(1234)) < 0){
                 LOG_ERROR(EpollerChan,"create epoll failed");
                 exit(-1);
             }
+            connectionMap.reserve(4096);
+            forwardCandidateMap.reserve(4096);
         }
 
         ~Epoller(){

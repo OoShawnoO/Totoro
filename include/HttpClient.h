@@ -1,7 +1,7 @@
 #ifndef TOTORO_HTTPCLIENT_H
 #define TOTORO_HTTPCLIENT_H
 
-#include "core/HttpsBase.h"
+#include "core/HttpsBase.h"     /* HttpsBase */
 
 namespace totoro {
     enum ProtoType {
@@ -154,16 +154,23 @@ namespace totoro {
         std::string requestUrl;
         bool parseUrl(const std::string& url);
     public:
+        // HTTP Get 请求 / HTTP Get method
         bool Get(const HttpRequestParameters& params);
+        // HTTP Post 请求 / HTTP Post method
         bool Post(const HttpRequestParameters& params);
-
+        // 获取响应内容 / Get response content
         std::string GetResponseContent();
+        // 获取响应报文 / Get response text
         const std::string& GetResponseText() const;
+        // 获取请求报文 / Get request text
         const std::string& GetRequestText() const;
-
+        // 获取请求头 / Get request header
         const HttpBase::RequestHeader& GetRequestHeader();
+        // 获取请求体 / Get request body
         const HttpBase::RequestBody& GetRequestBody();
+        // 获取响应头 / Get response header
         const HttpBase::ResponseHeader& GetResponseHeader();
+        // 获取响应体 / Get response body
         const HttpBase::ResponseBody& GetResponseBody();
 
     };

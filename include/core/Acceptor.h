@@ -19,12 +19,12 @@ namespace totoro {
         IPFilter filter                     {};
         TCPSocket listenSocket              {};
         std::deque<E> reactors     {};
-
+        /* 轮询式reactor处理新连接 / Use round-robin algorithm to process new connection */
         E& RoundRobin(){
             static int index = 0;
             return reactors[++index % reactors.size()];
         }
-
+        /* 使用当前最小连接数reactor处理新连接 / Use current least connection count reactor to process new connection */
         E& Minimum(){
             int minCount = INT_MAX;
             E* cur = nullptr;

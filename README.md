@@ -136,8 +136,8 @@ sudo apt install -y openssl && sudo apt install -y libssl-dev
   // 将从etc/config.json中选取SERVER字段中第一个配置进行初始化服务器
   // it will choose etc/config.json first of field 'SERVER' json object ot initialize server
   const auto& conf = Configure::Get()["SERVER"][0];
-  // 将从etc/config.json中选取HTTP_REVERSE_PROXY字段中寻找对应反向代理端口,并转发至目的服务器
+  // 将从etc/config.json中选取HTTPS_REVERSE_PROXY字段中寻找对应反向代理端口,并转发至目的服务器
   // it will choose etc/config.json field 'HTTPS_REVERSE_PROXY' and then find field at port that need reverse proxy,forward to destination server
-  HttpReverseServer acceptor(isStop,conf);
+  HttpsReverseServer acceptor(isStop,conf);
   acceptor.Run();
   ```

@@ -1,9 +1,8 @@
 #ifndef TOTORO_HTTPSBASE_H
 #define TOTORO_HTTPSBASE_H
 
-#include "Connection.h"
-#include "HttpBase.h"
-#include "core/SSLSocket.h"
+#include "HttpBase.h"           /* HttpBase */
+#include "core/SSLSocket.h"     /* SSLSocket */
 
 namespace totoro {
     /**

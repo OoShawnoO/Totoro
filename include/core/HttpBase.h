@@ -1,7 +1,7 @@
 #ifndef TOTORO_HTTPBASE_H
 #define TOTORO_HTTPBASE_H
 
-#include "Connection.h"
+#include "Connection.h"     /* Connection */
 
 namespace totoro {
     // HTTP Form 详细信息 / HTTP Form Detail
@@ -95,6 +95,7 @@ namespace totoro {
         CallbackReturnType WriteCallback() override;
         CallbackReturnType AfterWriteCallback() override;
     public:
+        // 请求头信息 / Request Header Information
         struct RequestHeader{
         private:
             // HTTP版本 / Http Version
@@ -157,6 +158,7 @@ namespace totoro {
             // 清除 / Clear
             void Clear();
         };
+        // 请求体信息 / Request Body Information
         struct RequestBody{
             friend struct RequestHeader;
         private:
@@ -196,6 +198,7 @@ namespace totoro {
             std::string toString(const RequestHeader& header) const;
             void Clear();
         };
+        // 响应头信息 / Response Header Information
         struct ResponseHeader{
         private:
             // HTTP版本 / Http Version
@@ -236,6 +239,7 @@ namespace totoro {
             std::string toString();
             void Clear();
         };
+        // 响应体信息 / Response Body Information
         struct ResponseBody{
         private:
             // 静态资源文件路径 / Static Resource Path
@@ -253,16 +257,23 @@ namespace totoro {
             const std::string& GetData() const;
             void Clear();
         };
-
+        // 接收并解析请求 / Recv and parse request
         CallbackReturnType ParseRequest();
+        // 接受并解析响应 / Recv and parse response
         CallbackReturnType ParseResponse();
+        // 发送请求 / Send Request
         CallbackReturnType SendRequest();
+        // 发送响应 / Send Response
         CallbackReturnType SendResponse();
+        // 解析状态 / Parse status
         HttpParseStatus parseStatus                      {RecvHeader};
-
+        // 请求报文 / Request text
         std::string requestText;
+        // 请求体报文 / Request body text
         std::string requestBodyText;
+        // 响应报文 / Response text
         std::string responseText;
+        // 响应头结束索引 / Index of response header end
         size_t responseHeaderEnd;
 
         void Clear();

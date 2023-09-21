@@ -1,12 +1,9 @@
 #ifndef TOTORO_FORWARDER_H
 #define TOTORO_FORWARDER_H
 
-#include "core/Connection.h"
-#include "core/SSLSocket.h"
-#include "core/HttpBase.h"
-#include "core/HttpsBase.h"
-#include "core/Acceptor.h"
-#include "core/ForwardEpoller.h"
+#include "core/HttpsBase.h"         /* HttpsBase*/
+#include "core/Acceptor.h"          /* Acceptor */
+#include "core/ForwardEpoller.h"    /* ForwardEpoller */
 
 namespace totoro {
     /**
@@ -14,10 +11,15 @@ namespace totoro {
      */
     class Forwarder{
     protected:
+        // 初始化转发者 / Initialize forwarder
         virtual int InitForwarder() = 0;
+        // 转发者读回调函数 / Forwarder read callback
         virtual Connection::CallbackReturnType ForwarderReadCallback() = 0;
+        // 转发者读后回调函数 / Forwarder after read callback
         virtual Connection::CallbackReturnType ForwarderAfterReadCallback() = 0;
+        // 转发者写回调函数 / Forwarder write callback
         virtual Connection::CallbackReturnType ForwarderWriteCallback() = 0;
+        // 转发者写后回调函数 / Forwarder after write callback
         virtual Connection::CallbackReturnType ForwarderAfterWriteCallback() = 0;
     };
     /**

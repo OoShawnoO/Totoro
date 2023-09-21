@@ -11,7 +11,6 @@ namespace totoro {
         oneShot = connectionInitParameter.oneShot;
         edgeTriggle = connectionInitParameter.edgeTriggle;
         forwardCandidateMap = connectionInitParameter.forwardCandidateMap;
-        closeChan = connectionInitParameter.closeChan;
         Socket::Init(connectionInitParameter.sock,connectionInitParameter.myAddr,
                      connectionInitParameter.destAddr);
         return 0;
@@ -227,9 +226,6 @@ namespace totoro {
     }
 
     int Connection::ShutDown() {
-        if(closeChan){
-            closeChan->push(sock);
-        }
         shutdown(sock,SHUT_RDWR);
         RegisterNextEvent(sock,Read,true);
         return 1;

@@ -5,8 +5,8 @@
 #include "core/Configure.h"  /* Configure */
 #include "core/IPFilter.h"
 
-#include <utility>
-#include <functional>
+#include <utility>           /* pair */
+#include <functional>        /* function */
 
 
 namespace totoro {
@@ -49,26 +49,43 @@ namespace totoro {
             FAILED = -1,AGAIN,SUCCESS,INTERRUPT,SHUTDOWN
         };
         ~Connection() override;
+        /* 事件循环 / Event loop */
         void Run();
+        /* 主动关闭连接 / Manual shut down connection */
         int ShutDown();
+        /* 关闭连接并清除connection数据 / Close connection and clear data */
         int Close() override;
+        /* 清除缓冲区数据 / Clear buffer data */
         void ClearData();
+        /* 封禁IP地址 / Ban ip address */
         bool BanAddr(const std::string& banIp);
+        /* 添加允许的IP地址 / Add allowed ip address */
         bool AllowAddr(const std::string& allowIp);
+        /* 设置工作socket / Set work socket */
         void SetWorkSock(SocketID sock);
+        /* 为socket注册下一个事件 / Register next event for socket */
         void RegisterNextEvent(SocketID sock,Status nextStatus,bool isMod);
+        /* 初始化 / Initialize */
         virtual int Init(const ConnectionInitParameter& connectionInitParameter);
     protected:
+        // 工作socket / Working socket
         SocketID workSock                           {BAD_FILE_DESCRIPTOR};
+        // EPOLL实例id / Epoll id
         EpollID epollId                             {BAD_FILE_DESCRIPTOR};
+        // 缓冲区数据 / Buffer data
         std::string data                            {};
+        // 事件循环状态 / Event loop status
         Status status                               {None};
+        // 上次事件状态 / Last event status
         Status lastStatus                           {None};
+        // 边界触发 / Edge triggle
         bool edgeTriggle                            {false};
+        // Oneshot 模式 / Oneshot model
         bool oneShot                                {true};
+        // IP过滤器 / IP Filter
         IPFilter* filter                            {nullptr};
+        // 转发候选表 / Forward candidate map
         ForwardCandidateMap* forwardCandidateMap    {nullptr};
-        Channel<SocketID>* closeChan                {nullptr};
         // 读事件回调 / Read event callback
         virtual CallbackReturnType ReadCallback();
         // 读事件后回调 / After read event callback

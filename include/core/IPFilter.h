@@ -1,9 +1,9 @@
 #ifndef TOTORO_IPFILTER_H
 #define TOTORO_IPFILTER_H
 
-#include <netinet/in.h>
-#include <set>
-#include "Json.hpp"
+#include <netinet/in.h>     /* in_addr_t */
+#include <set>              /* set */
+#include "Json.hpp"         /* json */
 
 namespace totoro {
     using Json = nlohmann::json;

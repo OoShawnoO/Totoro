@@ -1,15 +1,19 @@
 #ifndef TOTORO_FORWARDEPOLLER_H
 #define TOTORO_FORWARDEPOLLER_H
 
-#include "Epoller.h"
+#include "Epoller.h"        /* Epoller */
 
 namespace totoro {
     template<class T>
     class ForwardEpoller : public Epoller<T> {
     public:
-        explicit ForwardEpoller(bool& _isStop,IPFilter* _filter = nullptr,
-                         bool _et = false,bool _oneShot = true,bool _noneBlock = true):
-                Epoller<T>(_isStop,_filter,_et,_oneShot,_noneBlock){}
+        explicit ForwardEpoller(
+                bool&       _isStop,
+                IPFilter*   _filter                           = nullptr,
+                bool        _et                               = false,
+                bool        _oneShot                          = true,
+                bool        _noneBlock                        = true
+        ):Epoller<T>(_isStop,_filter,_et,_oneShot,_noneBlock){}
 
         void DelConnection(std::shared_ptr<T> &conn) override {
             if(Epoller<T>::EpollDel(conn->Sock())<0){
