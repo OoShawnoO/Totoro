@@ -36,6 +36,8 @@ namespace totoro {
         int sock                            {BAD_FILE_DESCRIPTOR};
         // 本机地址 / Self address
         sockaddr_in myAddr                  {};
+        // 本机端口 / Self port
+        unsigned short myPort               {0};
         // 目的地址 / Destination address
         sockaddr_in destAddr                {};
         socklen_t   destAddrLen             {};

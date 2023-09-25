@@ -63,7 +63,8 @@ namespace totoro {
             {HttpStatus::Too_Early,                       "Too Early"},
             {HttpStatus::Upgrade_Required,                "Upgrade Required"},
             {HttpStatus::Retry_With,                      "Retry With"},
-            {HttpStatus::Unavailable_For_Legal_Reasons,   "Unavailable For Legal Reasons"}
+            {HttpStatus::Unavailable_For_Legal_Reasons,   "Unavailable For Legal Reasons"},
+            {HttpStatus::Internal_Server_Error,           "Internal Server Error"}
     };
     /* endregion */
     /* region Http Version Map */
@@ -938,7 +939,6 @@ namespace totoro {
             responseBodyText += fmt::format("{}:{}\r\n",field.first,std::move(values));
         }
         responseBodyText += "\r\n";
-
         return responseBodyText;
     }
 
@@ -1003,6 +1003,8 @@ namespace totoro {
     }
 
     void HttpBase::ResponseBody::SetData(std::string& _data) { data = std::move(_data); }
+
+    void HttpBase::ResponseBody::SetData(std::string &&_data) { data = std::move(_data); }
 
     void HttpBase::ResponseBody::Clear() {
         resourcePath.clear();

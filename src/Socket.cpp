@@ -45,6 +45,7 @@ namespace totoro {
     void Socket::Init(int _sock, sockaddr_in _myAddr, sockaddr_in _destAddr) {
         sock = _sock;
         myAddr = _myAddr;
+        myPort = ntohs(_myAddr.sin_port);
         destAddr = _destAddr;
     }
 

@@ -70,7 +70,8 @@ namespace totoro {
         Too_Early = 425,
         Upgrade_Required = 426,
         Retry_With = 449,
-        Unavailable_For_Legal_Reasons = 451
+        Unavailable_For_Legal_Reasons = 451,
+        Internal_Server_Error = 500
     };
     enum HttpVersion { HTTP11,HTTP10,HTTP20,HTTP30};
 
@@ -253,9 +254,26 @@ namespace totoro {
             const std::string& GetResourcePath() const;
             // 设置传输数据 / Set transport data
             void SetData(std::string& data);
+            // 设置传输数据 / Set transport data
+            void SetData(std::string&& data);
             // 获取传输数据 / Get transport data
             const std::string& GetData() const;
+
             void Clear();
+        };
+        // 请求信息 / Request Information
+        struct HttpRequest{
+            // 请求头 / Request header
+            RequestHeader   &header;
+            // 请求体 / Request body
+            RequestBody     &body;
+        };
+        // 响应信息 / Response Information
+        struct HttpResponse{
+            // 响应头
+            ResponseHeader  &header;
+            // 响应体
+            ResponseBody    &body;
         };
         // 接收并解析请求 / Recv and parse request
         CallbackReturnType ParseRequest();
@@ -288,6 +306,10 @@ namespace totoro {
         ResponseHeader responseHeader;
         // 响应体信息 / Response Body Information
         ResponseBody responseBody;
+        // 请求信息 / Request Information
+        HttpRequest httpRequest{requestHeader,requestBody};
+        // 响应信息 / Response Information
+        HttpResponse httpResponse{responseHeader,responseBody};
         // Get 方法处理 / Get Request Handler
         virtual bool GetHandler();
         // Post 方法处理 / Post Request Handler

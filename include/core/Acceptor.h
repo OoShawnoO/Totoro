@@ -15,10 +15,13 @@ namespace totoro {
      */
     template<typename E>
     class Acceptor {
+    protected:
         bool& isStop                        ;
         IPFilter filter                     {};
         TCPSocket listenSocket              {};
-        std::deque<E> reactors     {};
+        std::deque<E> reactors              {};
+        std::string ip                      {};
+        unsigned short port                 {0};
         /* 轮询式reactor处理新连接 / Use round-robin algorithm to process new connection */
         E& RoundRobin(){
             static int index = 0;
@@ -36,8 +39,8 @@ namespace totoro {
     public:
         Acceptor(bool& _isStop,const Json& config)
                  :isStop(_isStop){
-            std::string ip = config["ip"];
-            short port = config["port"];
+            ip = config["ip"];
+            port =config["port"];
             int epollTimeout = config["epollTimeout"];
             int reactorNum = config["reactorNum"];
             bool edgeTriggle = config["edgeTriggle"];
