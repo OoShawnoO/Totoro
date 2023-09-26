@@ -78,67 +78,6 @@ namespace totoro {
                                                    "</script>"
                                                    "</html>";
 
-#define HANDLER_DETAIL() do{                                                    \
-    try {                                                                       \
-        if(!isAllowed(requestHeader.GetUrl().substr(1),                         \
-                      requestHeader.GetMethod())){                              \
-            RenderStatus(HttpStatus::Forbidden);                                \
-            return true;                                                        \
-        }                                                                       \
-        auto ret = handlerMap                                                   \
-        .at(myPort)                                                             \
-        .at(requestHeader.GetUrl())                                             \
-        .at(requestHeader.GetMethod())(httpRequest,httpResponse);               \
-        if(ret) {                                                               \
-            responseHeader.SetStatus(HttpStatus::OK);                           \
-            if(!responseBody.GetResourcePath().empty()){                        \
-                if(::stat(responseBody.GetResourcePath().c_str(),&stat) < 0){   \
-                    RenderStatus(HttpStatus::Not_Found);                        \
-                }                                                               \
-                responseHeader.SetContentLength(stat.st_size);                  \
-            }else{                                                              \
-                responseHeader.SetContentLength(responseBody.GetData().size()); \
-            }                                                                   \
-        }                                                                       \
-        return ret;                                                             \
-    }catch(const std::out_of_range &e){                                         \
-        /* 静态资源文件处理 */                                                  \
-        std::string realUrl = requestHeader.GetUrl().substr(1);                 \
-        if(requestHeader.GetUrl() == "/") realUrl = ".";                        \
-        if(::stat(realUrl.c_str(),&stat) < 0){                                  \
-            RenderStatus(HttpStatus::Not_Found);                                \
-            return true;                                                        \
-        }else{                                                                  \
-            if(!(stat.st_mode & S_IRUSR)){                                      \
-                RenderStatus(HttpStatus::Forbidden);                            \
-                return true;                                                    \
-            }                                                                   \
-            if((S_IFMT & stat.st_mode) == S_IFDIR){                             \
-                responseBody.SetData(DirResourceHtml(realUrl));                 \
-                responseHeader.SetStatus(HttpStatus::OK);                       \
-                responseHeader.SetContentLength(responseBody.GetData().size()); \
-                responseHeader.SetContentType("text/html");                     \
-                return true;                                                    \
-            }                                                                   \
-            responseHeader.SetStatus(HttpStatus::OK);                           \
-            responseBody.SetResourcePath(realUrl);                              \
-            responseHeader.SetContentLength(stat.st_size);                      \
-            std::string contentType;                                            \
-            try{                                                                \
-                contentType = HttpContentTypeMap                                \
-                .at(realUrl.substr(realUrl.find('.')+1));                       \
-            }catch(const std::out_of_range &e){                                 \
-                contentType = "text/plain";                                     \
-            }                                                                   \
-            responseHeader.SetContentType(contentType);                         \
-            return true;                                                        \
-        }                                                                       \
-    }catch(...){                                                                \
-        RenderStatus(HttpStatus::Internal_Server_Error);                        \
-        return false;                                                           \
-    }                                                                           \
-}while(0)
-
     HttpServerImpl::HandlerMapType HttpServerImpl::handlerMap;
     HttpsServerImpl::HandlerMapType HttpsServerImpl::handlerMap;
 
@@ -205,39 +144,39 @@ namespace totoro {
 
 
     bool HttpServerImpl::GetHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::PostHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::PutHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::PatchHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::DeleteHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::TraceHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::HeadHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::OptionsHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     bool HttpServerImpl::ConnectHandler() {
-        HANDLER_DETAIL();
+        return handler();
     }
 
     void HttpServerImpl::Get(unsigned short port,const std::string &url,const HandlerType &handler) {
@@ -294,6 +233,67 @@ namespace totoro {
     void HttpServerImpl::Filter(unsigned short port,const std::string &url, std::vector<HttpMethod>& method) {
         auto& filterRoot = filterMap[port];
         filterRoot.addChild(url,method);
+    }
+
+    bool HttpServerImpl::handler() {
+        try {                                                                       
+            if(!isAllowed(requestHeader.GetUrl().substr(1),                         
+                          requestHeader.GetMethod())){                              
+                RenderStatus(HttpStatus::Forbidden);                                
+                return true;                                                        
+            }                                                                       
+            auto ret = handlerMap                                                   
+            .at(myPort)                                                             
+            .at(requestHeader.GetUrl())                                             
+            .at(requestHeader.GetMethod())(httpRequest,httpResponse);               
+            if(ret) {                                                               
+                responseHeader.SetStatus(HttpStatus::OK);                           
+                if(!responseBody.GetResourcePath().empty()){                        
+                    if(::stat(responseBody.GetResourcePath().c_str(),&stat) < 0){   
+                        RenderStatus(HttpStatus::Not_Found);                        
+                    }                                                               
+                    responseHeader.SetContentLength(stat.st_size);                  
+                }else{                                                              
+                    responseHeader.SetContentLength(responseBody.GetData().size()); 
+                }                                                                   
+            }                                                                       
+            return ret;                                                             
+        }catch(const std::out_of_range &e){                                         
+            /* 静态资源文件处理 */                                                  
+            std::string realUrl = requestHeader.GetUrl().substr(1);                 
+            if(requestHeader.GetUrl() == "/") realUrl = ".";                        
+            if(::stat(realUrl.c_str(),&stat) < 0){                                  
+                RenderStatus(HttpStatus::Not_Found);                                
+                return true;                                                        
+            }else{                                                                  
+                if(!(stat.st_mode & S_IRUSR)){                                      
+                    RenderStatus(HttpStatus::Forbidden);                            
+                    return true;                                                    
+                }                                                                   
+                if((S_IFMT & stat.st_mode) == S_IFDIR){                             
+                    responseBody.SetData(DirResourceHtml(realUrl));                 
+                    responseHeader.SetStatus(HttpStatus::OK);                       
+                    responseHeader.SetContentLength(responseBody.GetData().size()); 
+                    responseHeader.SetContentType("text/html");                     
+                    return true;                                                    
+                }                                                                   
+                responseHeader.SetStatus(HttpStatus::OK);                           
+                responseBody.SetResourcePath(realUrl);                              
+                responseHeader.SetContentLength(stat.st_size);                      
+                std::string contentType;                                            
+                try{                                                                
+                    contentType = HttpContentTypeMap                                
+                    .at(realUrl.substr(realUrl.find('.')+1));                       
+                }catch(const std::out_of_range &e){                                 
+                    contentType = "text/plain";                                     
+                }                                                                   
+                responseHeader.SetContentType(contentType);                         
+                return true;                                                        
+            }                                                                       
+        }catch(...){                                                                
+            RenderStatus(HttpStatus::Internal_Server_Error);                        
+            return false;                                                           
+        }                                                                           
     }
 
     HttpServer::HttpServer(bool &_isStop, const Json &config) : Acceptor(_isStop, config) {}

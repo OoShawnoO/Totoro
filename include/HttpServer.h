@@ -20,6 +20,7 @@ namespace totoro {
         };
 
         bool isAllowed(const std::string& url,HttpMethod method);
+        bool handler();
     public:
         using HandlerType = std::function<bool(const HttpRequest&,HttpResponse&)>;
         using HandlerMapType = std::unordered_map<unsigned short,std::unordered_map<std::string,std::unordered_map<HttpMethod,HandlerType>>>;
