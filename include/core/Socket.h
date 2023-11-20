@@ -49,6 +49,8 @@ namespace totoro {
         struct stat stat                    {};
     public:
         virtual ~Socket();
+        // 移交所有权 / Move ownership
+        virtual void Moveto(Socket& s);
         // 初始化 / Initialize
         virtual bool Init(const std::string& ip,short port) = 0;
         // 初始化 / Initialize

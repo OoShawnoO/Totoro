@@ -1,43 +1,16 @@
 #ifndef TOTORO_FORWARDEPOLLER_H
 #define TOTORO_FORWARDEPOLLER_H
 
-#include "Epoller.h"        /* Epoller */
+#include "Epoller.h"
 
 namespace totoro {
-    template<class T>
+    template<class T = Connection>
     class ForwardEpoller : public Epoller<T> {
-    public:
-        explicit ForwardEpoller(
-                bool&       _isStop,
-                IPFilter*   _filter                           = nullptr,
-                bool        _et                               = false,
-                bool        _oneShot                          = true,
-                bool        _noneBlock                        = true
-        ):Epoller<T>(_isStop,_filter,_et,_oneShot,_noneBlock){}
-
-        void DelConnection(std::shared_ptr<T> &conn) override {
-            if(Epoller<T>::EpollDel(conn->Sock())<0){
-                LOG_ERROR(EpollerChan, strerror(errno));
-            }
-            int sock = conn->Sock();
-            int ret = conn->Close();
-            if(ret >= 0) {
-                Epoller<T>::EpollDel(ret);
-                Epoller<T>::forwardCandidateMap.erase(ret);
-                Epoller<T>::connectionMap.erase(ret);
-            }
-            Epoller<T>::connectionPool.release(conn);
-            Epoller<T>::connectionMap.erase(sock);
-            Epoller<T>::currentConnectCount--;
-        }
-
-    protected:
-        bool getMapIterator
-        (SocketID cur, typename Epoller<T>::ConnectionMapIterator &mapIterator) override {
+        bool getMapIterator(SocketID cur, typename Epoller<T>::ConnectionMapIterator &mapIterator) override {
             if((mapIterator = Epoller<T>::connectionMap.find(cur)) == Epoller<T>::connectionMap.end()){
 
                 typename Epoller<T>::ForwardCandidateMapIterator forwardIter;
-                if((forwardIter = Epoller<T>::forwardCandidateMap.find(cur)) != Epoller<T>::forwardCandidateMap.end()){
+                if((Epoller<T>::forwardIter = Epoller<T>::forwardCandidateMap.find(cur)) != Epoller<T>::forwardCandidateMap.end()){
                     if((mapIterator = Epoller<T>::connectionMap.find(forwardIter->second)) == Epoller<T>::connectionMap.end()){
                         LOG_ERROR(EpollerChan,"not found connection for forward socket");
                         return false;
@@ -95,6 +68,22 @@ namespace totoro {
                 LOG_TRACE(EpollerChan,std::to_string(cur) + " new connection added");
             }
             return true;
+        }
+
+    public:
+        void DelConnection(std::shared_ptr<T> &conn) override {
+            if(EpollDel(conn->Sock())<0){
+                LOG_ERROR(EpollerChan, strerror(errno));
+            }
+            int sock = conn->Sock();
+            int ret = conn->Close();
+            if(ret >= 0) {
+                Epoller<T>::EpollDel(ret);
+                Epoller<T>::connectionMap.erase(ret);
+            }
+            Epoller<T>::connectionPool.release(conn);
+            Epoller<T>::connectionMap.erase(sock);
+            Epoller<T>::currentConnectCount--;
         }
     };
 

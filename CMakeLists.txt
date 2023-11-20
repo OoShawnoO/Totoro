@@ -14,6 +14,7 @@ if(NOT ${TRAGET} fmt)
 include(thirdparty/fmt.cmake)
 endif()
 
-add_executable(${TARGET} main.cpp ${SRC} ${INCLUDE} test/Test.h)
+add_executable(${TARGET} main.cpp ${SRC} ${INCLUDE} test/Test.h
+        include/core/ForwardEpoller.h)
 
 target_link_libraries(${TARGET} pthread fmt::fmt ssl crypto)

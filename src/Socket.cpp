@@ -30,6 +30,13 @@ namespace totoro {
         Socket::Close();
     }
 
+    void Socket::Moveto(Socket &s) {
+        s = *this;
+        sock = BAD_FILE_DESCRIPTOR;
+        file = BAD_FILE_DESCRIPTOR;
+    }
+
+
     int Socket::Sock() const {
         return sock;
     }
@@ -59,7 +66,8 @@ namespace totoro {
      * @return -1 false
      */
     int TCPSocket::sendImpl(const char *data) {
-        size_t hadSend,needSend;
+        size_t needSend;
+        ssize_t hadSend;
         while(writeCursor < writeTotalBytes){
             needSend = writeTotalBytes - writeCursor;
             if((hadSend = ::send(sock,data + writeCursor,needSend,MSG_NOSIGNAL)) <= 0){
