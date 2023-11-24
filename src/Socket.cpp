@@ -451,7 +451,8 @@ namespace totoro {
     }
 
     int UDPSocket::sendImpl(const char *data) {
-        size_t hadSend,needSend;
+        size_t needSend;
+        ssize_t hadSend;
         while(writeCursor < writeTotalBytes){
             needSend = (writeTotalBytes - writeCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : writeTotalBytes - writeCursor;
             memcpy(buffer,data + writeCursor,needSend);
@@ -586,7 +587,7 @@ namespace totoro {
             }
             isNew = false;
         }
-        size_t hadSend;
+        ssize_t hadSend;
         while(writeCursor < writeTotalBytes){
             bzero(buffer,SOCKET_BUF_SIZE);
             ssize_t hadRead = read(file,buffer,SOCKET_BUF_SIZE);
@@ -613,7 +614,7 @@ namespace totoro {
             writeCursor = 0;
             isNew = false;
         }
-        size_t hadSend;
+        ssize_t hadSend;
         while(writeCursor < writeTotalBytes){
             bzero(buffer,SOCKET_BUF_SIZE);
             ssize_t hadRead = read(file,buffer,SOCKET_BUF_SIZE);

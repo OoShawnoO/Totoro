@@ -38,7 +38,7 @@ namespace totoro {
         int NoneBlock(SocketID socketId) {
             int option = fcntl(socketId,F_GETFL);
             int newOption = option | O_NONBLOCK;
-            return fcntl(socketId,newOption);
+            return fcntl(socketId,F_SETFL,newOption);
         }
         int EpollAdd(SocketID socketId,bool isListen = false) {
             epoll_event ev{};

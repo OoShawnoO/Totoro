@@ -24,7 +24,7 @@ namespace totoro {
         ev.events = (oneShot ? ev.events | EPOLLONESHOT : ev.events);
         int option = fcntl(_sock,F_GETFL);
         int newOption = option | O_NONBLOCK;
-        fcntl(_sock,newOption);
+        fcntl(_sock,F_SETFL,newOption);
         return epoll_ctl(epollId,EPOLL_CTL_ADD,_sock,&ev);
     }
 
