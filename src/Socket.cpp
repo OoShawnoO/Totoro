@@ -201,10 +201,20 @@ namespace totoro {
         destAddr.sin_port = htons(port);
         destAddr.sin_family = AF_INET;
         destAddr.sin_addr.s_addr = inet_addr(ip.c_str());
-        if(connect(sock,(sockaddr*)&destAddr,sizeof(destAddr)) < 0){
-            LOG_ERROR(SocketChan,strerror(errno));
-            return false;
+
+        int option = fcntl(sock,F_GETFL);
+        int newOption = option | O_NONBLOCK;
+        fcntl(sock,F_SETFL,newOption);
+
+        while(connect(sock,(sockaddr*)&destAddr,sizeof(destAddr)) < 0){
+            if(errno != EINPROGRESS && errno != EALREADY) {
+                LOG_ERROR(SocketChan, strerror(errno));
+                return false;
+            }
         }
+
+        fcntl(sock,F_SETFL,option);
+
         return true;
     }
 

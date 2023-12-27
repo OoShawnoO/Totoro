@@ -26,7 +26,7 @@
 #define RECVER_PORT 1234
 #define TEST_HTTP_URL "http://www.baidu.com/"
 #define TEST_HTTPS_URL "https://www.baidu.com/"
-#define PROXY_IP "127.0.0.1"
+#define PROXY_IP "172.22.96.1"
 #define PROXY_PORT 7890
 #define TEST_UNABLE_URL_WITHOUT_HTTP_PROXY "http://google.com/"
 #define TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY "https://google.com/"

@@ -15,7 +15,7 @@ namespace totoro {
         std::chrono::milliseconds to(_timeout);                         \
         if(result.wait_for(to) == std::future_status::timeout){         \
             LOG_ERROR(HttpClientChan,"timeout");                        \
-            shutdown(sock,SHUT_RDWR);                                   \
+            Close();                                                    \
             return false;                                               \
         }                                                               \
     }                                                                   \
