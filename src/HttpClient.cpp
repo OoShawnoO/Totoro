@@ -4,7 +4,7 @@
 #include "HttpClient.h"
 #include "fmt/format.h"
 
-const std::string HttpClientChan = "HttpClient";
+const std::string HttpClientChan = "Totoro";
 namespace totoro {
 
 #define TIMEOUT(function,_timeout) do {                                 \
@@ -14,7 +14,7 @@ namespace totoro {
     if(timeout > 0){                                                    \
         std::chrono::milliseconds to(_timeout);                         \
         if(result.wait_for(to) == std::future_status::timeout){         \
-            LOG_ERROR(HttpClientChan,"timeout");                        \
+            MOLE_ERROR(HttpClientChan,"timeout");                        \
             Close();                                                    \
             return false;                                               \
         }                                                               \
@@ -39,7 +39,7 @@ namespace totoro {
 
         auto host = gethostbyname(realAddr.c_str());
         if(!host) {
-            LOG_ERROR(HttpClientChan,"failed to get host name");
+            MOLE_ERROR(HttpClientChan,"failed to get host name");
             return false;
         }
         bool connected = false;
@@ -49,7 +49,7 @@ namespace totoro {
             if(Connect(tempIP,realPort)){ connected = true;break; }
         }
         if(!connected) {
-            LOG_ERROR(HttpClientChan,"failed to connect host");
+            MOLE_ERROR(HttpClientChan,"failed to connect host");
             return false;
         }
         return true;
@@ -234,7 +234,7 @@ namespace totoro {
 
         auto host = gethostbyname(realAddr.c_str());
         if(!host) {
-            LOG_ERROR(HttpClientChan,"failed to get host name");
+            MOLE_ERROR(HttpClientChan,"failed to get host name");
             return false;
         }
         bool connected = false;
@@ -248,35 +248,35 @@ namespace totoro {
                 }
             }
             if (!connected) {
-                LOG_ERROR(HttpClientChan, "failed to connect host");
+                MOLE_ERROR(HttpClientChan, "failed to connect host");
                 return false;
             }
             if (TCPSocket::SendAll(fmt::format("{} {} {}\r\n\r\n","CONNECT", fmt::format("{}:{}", connectAddr, connectPort), "HTTP/1.1")) < 0) {
-                LOG_ERROR(HttpClientChan, "send connect failed");
+                MOLE_ERROR(HttpClientChan, "send connect failed");
                 return false;
             }
             while (!TCPSocket::RecvAll(data)) {}
             if (data.rfind("Connection established") == std::string::npos) {
-                LOG_ERROR(HttpClientChan, "connect proxy failed");
+                MOLE_ERROR(HttpClientChan, "connect proxy failed");
                 return false;
             }
             ClearData();
             if (!connection) {
                 connection = SSL_new(GetClientContext().context);
                 if (!connection) {
-                    LOG_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
+                    MOLE_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
                     return false;
                 }
                 if (SSL_set_fd(connection, sock) <= 0) {
-                    LOG_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
+                    MOLE_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
                     return false;
                 }
                 if (SSL_connect(connection) <= 0) {
-                    LOG_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
+                    MOLE_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
                     return false;
                 }
                 if (SSL_is_init_finished(connection) <= 0) {
-                    LOG_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
+                    MOLE_ERROR(HttpClientChan, ERR_error_string(ERR_get_error(), buffer));
                     return false;
                 }
             }
@@ -291,7 +291,7 @@ namespace totoro {
                 }
             }
             if (!connected) {
-                LOG_ERROR(HttpClientChan, "failed to connect host");
+                MOLE_ERROR(HttpClientChan, "failed to connect host");
                 return false;
             }
         }

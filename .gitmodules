@@ -1,0 +1,3 @@
+[submodule "3rdparty/Mole"]
+	path = 3rdparty/Mole
+	url = https://github.com/OoShawnoO/Mole.git

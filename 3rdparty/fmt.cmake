@@ -1,6 +1,6 @@
 include(FetchContent)
 
-set(CONTENT_DIR ${PROJECT_SOURCE_DIR}/thirdparty)
+set(CONTENT_DIR ${PROJECT_SOURCE_DIR}/3rdparty)
 
 FetchContent_Declare(
         fmt

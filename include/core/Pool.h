@@ -1,5 +1,5 @@
-#ifndef TOTOROSERVER_POOL_H
-#define TOTOROSERVER_POOL_H
+#ifndef TOTORO_POOL_H
+#define TOTORO_POOL_H
 
 #include "Channel.h"        /* Channel */
 
@@ -32,4 +32,4 @@ namespace totoro {
 
 } // totoro
 
-#endif //TOTOROSERVER_POOL_H
+#endif //TOTORO_POOL_H

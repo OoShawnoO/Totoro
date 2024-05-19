@@ -3,7 +3,7 @@
 
 #include <cstring>
 #include <fcntl.h>
-#include "core/AsyncLogger.h"
+#include "Mole/Mole.h"
 #include "core/Socket.h"
 #include "core/Connection.h"
 #include "core/Acceptor.h"
@@ -14,9 +14,9 @@
 
 #define ASSERT(data,right) do{      \
     if(data == right){              \
-        LOG_INFO("TEST","PASS");    \
+        MOLE_INFO("TEST","PASS");    \
     }else{                          \
-        LOG_ERROR("TEST","FAILED");  \
+        MOLE_ERROR("TEST","FAILED");  \
     }                               \
 }while(0)
 
@@ -45,7 +45,7 @@ void TcpSendThread(std::string data,TestType type){
 
     TCPSocket clientSocket;
     if(!tcpSocket.Accept(clientSocket)){
-        LOG_ERROR("Accept",strerror(errno));
+        MOLE_ERROR("Accept",strerror(errno));
         return;
     }
     switch(type){
@@ -206,9 +206,24 @@ void TEST_HttpClient_HttpsGet(){
 
 void TEST_Acceptor(){
     bool isStop{false};
-    const auto& conf = Configure::Get()["SERVER"][0];
+    const auto& conf = Configure::config.conf["server"]["x-server"];
     Acceptor<Epoller<HttpBase>> acceptor(isStop,conf);
     acceptor.Run();
+}
+
+void TEST_ALL() {
+    TEST_TcpSendRecvString();
+    TEST_TcpSendRecvBytes();
+    TEST_TcpSendRecvFile();
+    TEST_UdpSendRecvString();
+    TEST_UdpSendRecvBytes();
+    TEST_UdpSendRecvFile();
+    TEST_HttpClient_HttpGet_Timeout();
+    TEST_HttpClient_HttpsGet_Timeout();
+    TEST_HttpClient_HttpGet_Proxy();
+    TEST_HttpClient_HttpsGet_Proxy();
+    TEST_HttpClient_HttpGet();
+    TEST_HttpClient_HttpsGet();
 }
 
 #endif //TOTOROSERVER_TEST_H

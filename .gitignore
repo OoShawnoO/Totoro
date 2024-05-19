@@ -28,8 +28,9 @@
 main.cpp
 cmake-build-debug
 # third party
-thirdparty/*
-!thirdparty/*.cmake
+3rdparty/*
+!3rdparty/Mole
+!3rdparty/*.cmake
 
 # test
 test/*

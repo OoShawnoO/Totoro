@@ -1,10 +1,10 @@
-#ifndef TOTOROSERVER_SOCKET_H
-#define TOTOROSERVER_SOCKET_H
+#ifndef TOTORO_SOCKET_H
+#define TOTORO_SOCKET_H
 
 #include <unistd.h>         /* close */
 #include <arpa/inet.h>      /* socket addr */
 #include <string>           /* string */
-#include "AsyncLogger.h"    /* AsyncLogger */
+#include "Mole/Mole.h"    /* AsyncLogger */
 #include <sys/stat.h>       /* stat */
 #include <vector>           /* vector */
 
@@ -168,4 +168,4 @@ namespace totoro {
     };
 } // totoro
 
-#endif //TOTOROSERVER_SOCKET_H
+#endif //TOTORO_SOCKET_H

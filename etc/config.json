@@ -1,52 +1,34 @@
 {
-  "SERVER-KEY":"test/n1nja.xyz.key",
-  "SERVER-CERT": "test/n1nja.xyz_bundle.crt",
-  "CA-CERT": "test/n1nja.xyz.csr",
-  "CLIENT-KEY": "test/n1nja.xyz.key",
-  "CLIENT-CERT": "test/n1nja.xyz_bundle.crt",
-  "LOG": {
-    "channels" : {
-      "TEST": "TRACE",
-      "Epoller": "ERROR",
-      "Acceptor": "ERROR",
-      "Connection": "ERROR"
-    },
-    "savePath" : "log/log.log"
-  },
-  "FORWARD_PROXY": {
-  },
-  "HTTP_REVERSE_PROXY": {
-    "8888": [
-      {"ip": "127.0.0.1","port": 9999}
-    ]
-  },
-  "HTTPS_REVERSE_PROXY": {
-    "8888": [
-      {"ip": "127.0.0.1","port": 9999}
-    ]
-  },
-  "SERVER": [
-    {
+  "server-key":"xxx.key",
+  "server-cert": "xxx.crt",
+  "ca-cert": "xxx.csr",
+  "client-key": "xxx.key",
+  "client-cert": "xxx.crt",
+  "forward-proxy": {},
+  "http_reverse_proxy": {"8888": [{"ip": "127.0.0.1","port": 9999}]},
+  "https_reverse_proxy": {"8888": [{"ip": "127.0.0.1","port": 9999}]},
+  "server": {
+    "x-server" : {
       "ip": "127.0.0.1",
       "port": 9999,
-      "reactorNum": 1,
-      "epollTimeout": -1,
-      "allow":[],
-      "deny": [],
-      "edgeTriggle": true,
-      "oneShot": true,
-      "noneBlock": false
+      "reactor-count": 1,
+      "epoll-timeout": -1,
+      "allow-ip":[],
+      "deny-ip": [],
+      "edge-trigger": true,
+      "one-shot": true,
+      "none-block": false
     },
-    {
+    "y-server" : {
       "ip": "0.0.0.0",
       "port": 8888,
-      "reactorNum": 1,
-      "epollTimeout": -1,
-      "allow":[],
-      "deny": [],
-      "edgeTriggle": true,
-      "oneShot": true,
-      "noneBlock": false
+      "reactor-count": 1,
+      "epoll-timeout": -1,
+      "allow-ip":[],
+      "deny-ip": [],
+      "edge-trigger": true,
+      "one-shot": true,
+      "none-block": false
     }
-  ]
+  }
 }

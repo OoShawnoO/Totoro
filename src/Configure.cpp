@@ -1,13 +1,12 @@
 #include "core/Configure.h"
 
 namespace totoro {
+
     Configure::Configure(const std::string &filePath) {
         std::ifstream in(filePath);
         conf = Json::parse(in);
     }
 
-    const Json &totoro::Configure::Get() {
-        static Configure config("etc/config.json");
-        return config.conf;
-    }
+    Configure Configure::config("etc/config.json");
+
 } // totoro

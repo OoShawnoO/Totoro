@@ -4,7 +4,9 @@
 #include <sstream>
 #include <regex>
 #include "fmt/format.h"
-static const std::string HttpBaseChan = "HttpBase";
+#include "fmt/ranges.h"
+
+static const std::string HttpBaseChan = "Totoro";
 namespace totoro {
     /* region Http Method Map */
     const std::unordered_map<HttpMethod,std::string> HttpMethodMap{
@@ -307,7 +309,7 @@ namespace totoro {
             switch(parseStatus) {
                 case RecvHeader : {
                     if(!RecvAll(data,true)){
-                        LOG_ERROR(HttpBaseChan,"recv all failed");
+                        MOLE_ERROR(HttpBaseChan,"recv all failed");
                         return FAILED;
                     }
                     size_t size;
@@ -317,7 +319,7 @@ namespace totoro {
                 }
                 case ParseHeader : {
                     if(!requestHeader.Parse(data)) {
-                        LOG_ERROR(HttpBaseChan,"parse header failed");
+                        MOLE_ERROR(HttpBaseChan,"parse header failed");
                         return FAILED;
                     }
                     if(requestHeader.GetMethod() != POST
@@ -335,7 +337,7 @@ namespace totoro {
                         while(data.size() < requestHeader.GetContentLength()){
                             ret = Recv(data,requestHeader.GetContentLength() - data.size(),true);
                             if(ret < 0) {
-                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                MOLE_ERROR(HttpBaseChan,"recv body failed");
                                 return FAILED;
                             }else if(ret == 0){
                                 return AGAIN;
@@ -346,7 +348,7 @@ namespace totoro {
                 }
                 case ParseBody : {
                     if(!requestBody.Parse(data,requestHeader)){
-                        LOG_ERROR(HttpBaseChan,"parse body failed");
+                        MOLE_ERROR(HttpBaseChan,"parse body failed");
                         return FAILED;
                     }
                     requestText += data;
@@ -357,7 +359,7 @@ namespace totoro {
                     return SUCCESS;
                 }
                 default : {
-                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    MOLE_ERROR(HttpBaseChan,"parse status error");
                     return FAILED;
                 }
             }
@@ -370,7 +372,7 @@ namespace totoro {
             switch(parseStatus) {
                 case RecvHeader : {
                     if(!RecvAll(data,true)){
-                        LOG_ERROR(HttpBaseChan,"recv all failed");
+                        MOLE_ERROR(HttpBaseChan,"recv all failed");
                         return FAILED;
                     }
                     size_t size;
@@ -381,7 +383,7 @@ namespace totoro {
                 }
                 case ParseHeader : {
                     if(!responseHeader.Parse(data)) {
-                        LOG_ERROR(HttpBaseChan,"parse header failed");
+                        MOLE_ERROR(HttpBaseChan,"parse header failed");
                         return FAILED;
                     }
                     parseStatus = RecvBody;
@@ -392,7 +394,7 @@ namespace totoro {
                         while(data.size() < contentLength){
                             ret = Recv(data,contentLength - data.size(),true);
                             if(ret < 0) {
-                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                MOLE_ERROR(HttpBaseChan,"recv body failed");
                                 return FAILED;
                             }else if(ret == 0){
                                 return AGAIN;
@@ -403,7 +405,7 @@ namespace totoro {
                         auto pos = data.rfind("\r\n\r\n");
                         if(pos == std::string::npos) {
                             if(!RecvAll(data,true)){
-                                LOG_ERROR(HttpBaseChan,"recv body failed");
+                                MOLE_ERROR(HttpBaseChan,"recv body failed");
                                 return FAILED;
                             }
                             pos = data.rfind("\r\n\r\n");
@@ -424,7 +426,7 @@ namespace totoro {
                     return SUCCESS;
                 }
                 default : {
-                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    MOLE_ERROR(HttpBaseChan,"parse status error");
                     return FAILED;
                 }
             }
@@ -471,7 +473,7 @@ namespace totoro {
                     return SUCCESS;
                 }
                 default : {
-                    LOG_ERROR(HttpBaseChan,"parse status error");
+                    MOLE_ERROR(HttpBaseChan,"parse status error");
                     return FAILED;
                 }
             }
@@ -507,7 +509,7 @@ namespace totoro {
                 return SUCCESS;
             }
             default : {
-                LOG_ERROR(HttpBaseChan,"parse status error");
+                MOLE_ERROR(HttpBaseChan,"parse status error");
                 return FAILED;
             }
         }
@@ -551,20 +553,20 @@ namespace totoro {
 
     bool HttpBase::RequestHeader::Parse(std::string &requestHeaderData) {
         if(requestHeaderData.empty()) {
-            LOG_ERROR(HttpBaseChan,"request header empty");
+            MOLE_ERROR(HttpBaseChan,"request header empty");
             return false;
         }
         std::stringstream stream(requestHeaderData);
         std::string line;
 
         if(!getLine(stream,line)) {
-            LOG_ERROR(HttpBaseChan,"request header content can't get line");
+            MOLE_ERROR(HttpBaseChan,"request header content can't get line");
             return false;
         }
 
         std::cmatch matches;
         if(!std::regex_match(line.c_str(), matches, RequestLineRegex)){
-            LOG_ERROR(HttpBaseChan,"match first line failed");
+            MOLE_ERROR(HttpBaseChan,"match first line failed");
             return false;
         }
         try{
@@ -572,7 +574,7 @@ namespace totoro {
             method = ReverseHttpMethodMap.at(matches[1]);
             version = ReverseHttpVersionMap.at(matches[3]);
         }catch(...){
-            LOG_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
+            MOLE_ERROR(HttpBaseChan,fmt::format("map not found {} or {}",matches[1].str(),matches[3].str()));
             return false;
         }
 
@@ -586,7 +588,7 @@ namespace totoro {
             if(line.empty()) break;
             auto splitPos = line.find(':');
             if(splitPos == std::string::npos){
-                LOG_ERROR(HttpBaseChan,"field has no :");
+                MOLE_ERROR(HttpBaseChan,"field has no :");
                 return false;
             }
             std::stringstream fieldStream(line.substr(splitPos + 1));
@@ -607,7 +609,7 @@ namespace totoro {
 
         auto& CT = fields["Content-Type"];
         if(CT.empty()) {
-            LOG_ERROR(HttpBaseChan,"not found content type");
+            MOLE_ERROR(HttpBaseChan,"not found content type");
             return -1;
         }
         auto splitPos = CT[0].find(';');
@@ -697,7 +699,7 @@ namespace totoro {
 
     bool HttpBase::RequestBody::Parse(const std::string &requestBodyData,const RequestHeader& header) {
         if(requestBodyData.empty()) {
-            LOG_ERROR(HttpBaseChan,"request body empty");
+            MOLE_ERROR(HttpBaseChan,"request body empty");
             return false;
         }
         std::stringstream stream(requestBodyData);
@@ -742,7 +744,7 @@ namespace totoro {
                     auto namePos = line.find("name=");
                     auto filePos = line.find("filename=");
                     if(namePos == std::string::npos){
-                        LOG_ERROR(HttpBaseChan,"request body multipart-files has no name field");
+                        MOLE_ERROR(HttpBaseChan,"request body multipart-files has no name field");
                         return false;
                     }
                     auto splitPos = line.find(';',namePos + 6);
@@ -759,7 +761,7 @@ namespace totoro {
             while(getline(stream,line,'&')){
                 auto equalPos = line.find('=');
                 if(equalPos == std::string::npos){
-                    LOG_ERROR(HttpBaseChan,"char '=' not found");
+                    MOLE_ERROR(HttpBaseChan,"char '=' not found");
                     return false;
                 }
                 name = line.substr(0,equalPos);
@@ -878,24 +880,24 @@ namespace totoro {
     /* ResponseHeader Impl */
     bool HttpBase::ResponseHeader::Parse(std::string &responseHeaderData) {
         if(responseHeaderData.empty()) {
-            LOG_ERROR(HttpBaseChan,"request header empty");
+            MOLE_ERROR(HttpBaseChan,"request header empty");
             return false;
         }
         std::stringstream stream(responseHeaderData);
         std::string line;
 
         if(!getLine(stream,line)) {
-            LOG_ERROR(HttpBaseChan,"request header content can't get line");
+            MOLE_ERROR(HttpBaseChan,"request header content can't get line");
             return false;
         }
         auto pos = line.find(' ');
         if(pos == std::string::npos) {
-            LOG_ERROR(HttpBaseChan,"parse response line failed");
+            MOLE_ERROR(HttpBaseChan,"parse response line failed");
             return false;
         }
         auto secondPos = line.find(' ',pos + 1);
         if(pos == std::string::npos) {
-            LOG_ERROR(HttpBaseChan,"parse response line failed");
+            MOLE_ERROR(HttpBaseChan,"parse response line failed");
             return false;
         }
         status = (HttpStatus)stoi(line.substr(pos + 1,secondPos - pos -1));
@@ -905,7 +907,7 @@ namespace totoro {
             if(line.empty()) break;
             auto splitPos = line.find(':');
             if(splitPos == std::string::npos){
-                LOG_ERROR(HttpBaseChan,"field has no :");
+                MOLE_ERROR(HttpBaseChan,"field has no :");
                 return false;
             }
             std::stringstream fieldStream(line.substr(splitPos + 1));

@@ -313,7 +313,7 @@ using is_detected_convertible =
 }  // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
-// #include <nlohmann/thirdparty/hedley/hedley.hpp>
+// #include <nlohmann/3rdparty/hedley/hedley.hpp>
 
 
 //     __ _____ _____ _____
@@ -24431,7 +24431,7 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
     #undef JSON_USE_LEGACY_DISCARDED_VALUE_COMPARISON
 #endif
 
-// #include <nlohmann/thirdparty/hedley/hedley_undef.hpp>
+// #include <nlohmann/3rdparty/hedley/hedley_undef.hpp>
 //     __ _____ _____ _____
 //  __|  |   __|     |   | |  JSON for Modern C++
 // |  |  |__   |  |  | | | |  version 3.11.2

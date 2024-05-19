@@ -2,14 +2,14 @@
 #include <fcntl.h>
 #include "core/Connection.h"
 
-const std::string ConnectionChan = "Connection";
+const std::string ConnectionChan = "Totoro";
 namespace totoro {
     /* Init Impl */
     int Connection::Init(const ConnectionInitParameter& connectionInitParameter) {
         filter = connectionInitParameter.filter;
         epollId = connectionInitParameter.epollId;
         oneShot = connectionInitParameter.oneShot;
-        edgeTriggle = connectionInitParameter.edgeTriggle;
+        edgeTrigger = connectionInitParameter.edgeTrigger;
         forwardCandidateMap = connectionInitParameter.forwardCandidateMap;
         Socket::Init(connectionInitParameter.sock,connectionInitParameter.myAddr,
                      connectionInitParameter.destAddr);
@@ -20,7 +20,7 @@ namespace totoro {
         epoll_event ev{};
         ev.data.fd = _sock;
         ev.events = EPOLLIN | EPOLLRDHUP;
-        ev.events = (edgeTriggle ? ev.events | EPOLLET : ev.events);
+        ev.events = (edgeTrigger ? ev.events | EPOLLET : ev.events);
         ev.events = (oneShot ? ev.events | EPOLLONESHOT : ev.events);
         int option = fcntl(_sock,F_GETFL);
         int newOption = option | O_NONBLOCK;
@@ -32,7 +32,7 @@ namespace totoro {
         epoll_event event{};
         event.data.fd = _sock;
         event.events = ev | EPOLLRDHUP;
-        event.events = edgeTriggle ? event.events | EPOLLET : event.events;
+        event.events = edgeTrigger ? event.events | EPOLLET : event.events;
         event.events = oneShot ? event.events | EPOLLONESHOT : event.events;
         return epoll_ctl(epollId,EPOLL_CTL_MOD,_sock,&event);
     }
@@ -50,15 +50,11 @@ namespace totoro {
         if(!isMod) return;
         switch(status){
             case Read : {
-                if(EpollMod(_sock,EPOLLIN) < 0){
-                    LOG_ERROR(ConnectionChan, strerror(errno));
-                }
+                if(EpollMod(_sock,EPOLLIN) < 0){ MOLE_ERROR(ConnectionChan, strerror(errno)); }
                 break;
             }
             case Write : {
-                if(EpollMod(_sock,EPOLLOUT) < 0){
-                    LOG_ERROR(ConnectionChan, strerror(errno));
-                }
+                if(EpollMod(_sock,EPOLLOUT) < 0){ MOLE_ERROR(ConnectionChan, strerror(errno)); }
                 break;
             }
             default:{}
@@ -84,7 +80,7 @@ namespace totoro {
                             break;
                         }
                         case FAILED : {
-                            LOG_ERROR(ConnectionChan,"ReadCallback failed");
+                            MOLE_ERROR(ConnectionChan,"ReadCallback failed");
                             status = Error;
                             break;
                         }
@@ -111,7 +107,7 @@ namespace totoro {
                             break;
                         }
                         case FAILED : {
-                            LOG_ERROR(ConnectionChan,"AfterReadCallback failed");
+                            MOLE_ERROR(ConnectionChan,"AfterReadCallback failed");
                             status = Error;
                             break;
                         }
@@ -138,7 +134,7 @@ namespace totoro {
                             break;
                         }
                         case FAILED : {
-                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
+                            MOLE_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
                             break;
                         }
@@ -169,7 +165,7 @@ namespace totoro {
                             break;
                         }
                         case FAILED : {
-                            LOG_ERROR(ConnectionChan,"WriteCallback failed");
+                            MOLE_ERROR(ConnectionChan,"WriteCallback failed");
                             status = Error;
                             break;
                         }

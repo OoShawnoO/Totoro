@@ -7,76 +7,78 @@
 
 namespace totoro {
 
-    const std::string FileBrowserTemplateHtml = "<!DOCTYPE html>\n"
-                                                "<html lang=\"en\">\n"
-                                                "<head>\n"
-                                                "    <meta charset=\"UTF-8\">\n"
-                                                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-                                                "    <title>文件资源列表</title>\n"
-                                                "    <style>\n"
-                                                "        body {\n"
-                                                "            font-family: Arial, sans-serif;\n"
-                                                "            background-color: #f3f3f3;\n"
-                                                "            margin: 0;\n"
-                                                "            padding: 0;\n"
-                                                "        }\n"
-                                                "        .container {\n"
-                                                "            max-width: 800px;\n"
-                                                "            margin: 0 auto;\n"
-                                                "            padding: 20px;\n"
-                                                "            background-color: #fff;\n"
-                                                "            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n"
-                                                "            border-radius: 5px;\n"
-                                                "        }\n"
-                                                "        h1 {\n"
-                                                "            text-align: center;\n"
-                                                "            color: #333;\n"
-                                                "        }\n"
-                                                "        ul {\n"
-                                                "            list-style-type: none;\n"
-                                                "            padding: 0;\n"
-                                                "        }\n"
-                                                "        li {\n"
-                                                "            margin-bottom: 10px;\n"
-                                                "            padding: 10px;\n"
-                                                "            border: 1px solid #ddd;\n"
-                                                "            background-color: #f9f9f9;\n"
-                                                "            border-radius: 5px;\n"
-                                                "            overflow: hidden;\n"
-                                                "        }\n"
-                                                "        .folder {"
-                                                "           background-color: #ffffcd;"
-                                                "        }"
-                                                "        .file{"
-                                                "           background-color: #f0fffff;"
-                                                "        }"
-                                                "        .file:hover{"
-                                                "         background-color:#e0e0e0;"
-                                                "        }"
-                                                "        .folder a {\n"
-                                                "            text-decoration: none;\n"
-                                                "            font-weight: bold;\n"
-                                                "            color: #007BFF;\n"
-                                                "        }\n"
-                                                "        .folder:hover {\n"
-                                                "            background-color: #e0e0e0;\n"
-                                                "        }\n"
-                                                "    </style>\n"
-                                                "</head>\n"
-                                                "<body>\n"
-                                                "    <div class=\"container\">\n"
-                                                "        <h1>文件资源列表</h1>\n"
-                                                "        <ul>";
+    const std::string FileBrowserTemplateHtml =
+            "<!DOCTYPE html>\n"
+                "<html lang=\"en\">\n"
+                "<head>\n"
+                "    <meta charset=\"UTF-8\">\n"
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                "    <title>文件资源列表</title>\n"
+                "    <style>\n"
+                "        body {\n"
+                "            font-family: Arial, sans-serif;\n"
+                "            background-color: #f3f3f3;\n"
+                "            margin: 0;\n"
+                "            padding: 0;\n"
+                "        }\n"
+                "        .container {\n"
+                "            max-width: 800px;\n"
+                "            margin: 0 auto;\n"
+                "            padding: 20px;\n"
+                "            background-color: #fff;\n"
+                "            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n"
+                "            border-radius: 5px;\n"
+                "        }\n"
+                "        h1 {\n"
+                "            text-align: center;\n"
+                "            color: #333;\n"
+                "        }\n"
+                "        ul {\n"
+                "            list-style-type: none;\n"
+                "            padding: 0;\n"
+                "        }\n"
+                "        li {\n"
+                "            margin-bottom: 10px;\n"
+                "            padding: 10px;\n"
+                "            border: 1px solid #ddd;\n"
+                "            background-color: #f9f9f9;\n"
+                "            border-radius: 5px;\n"
+                "            overflow: hidden;\n"
+                "        }\n"
+                "        .folder {"
+                "           background-color: #ffffcd;"
+                "        }"
+                "        .file{"
+                "           background-color: #f0fffff;"
+                "        }"
+                "        .file:hover{"
+                "         background-color:#e0e0e0;"
+                "        }"
+                "        .folder a {\n"
+                "            text-decoration: none;\n"
+                "            font-weight: bold;\n"
+                "            color: #007BFF;\n"
+                "        }\n"
+                "        .folder:hover {\n"
+                "            background-color: #e0e0e0;\n"
+                "        }\n"
+                "    </style>\n"
+                "</head>\n"
+                "<body>\n"
+                "    <div class=\"container\">\n"
+                "        <h1>文件资源列表</h1>\n"
+                "        <ul>";
 
-    const std::string FileBrowserTemplateHtmlEnd = "</ul>\n"
-                                                   "    </div>\n"
-                                                   "</body>\n"
-                                                   "<script>\n"
-                                                   "    function navigateTo(url) {\n"
-                                                   "        window.location.href = url;\n"
-                                                   "    }\n"
-                                                   "</script>"
-                                                   "</html>";
+    const std::string FileBrowserTemplateHtmlEnd =
+                "</ul>\n"
+                "    </div>\n"
+                "</body>\n"
+                "<script>\n"
+                "    function navigateTo(url) {\n"
+                "        window.location.href = url;\n"
+                "    }\n"
+                "</script>"
+                "</html>";
 
     HttpServerImpl::HandlerMapType HttpServerImpl::handlerMap;
     HttpsServerImpl::HandlerMapType HttpsServerImpl::handlerMap;
@@ -216,18 +218,20 @@ namespace totoro {
     }
 
     bool HttpServerImpl::isAllowed(const std::string &url, HttpMethod method) {
-        auto filterRoot = filterMap.at(myPort);
-        std::stringstream stream(url);
-        std::string line;
-        auto filterCursor = &filterRoot;
-        while(std::getline(stream,line,'/')) {
+        try{
+            auto filterRoot = filterMap.at(myPort);
+            std::stringstream stream(url);
+            std::string line;
+            auto filterCursor = &filterRoot;
             try {
-                filterCursor = filterCursor->children.at(line).get();
-            }catch(std::out_of_range &e){
-                break;
-            }
+                while(std::getline(stream,line,'/')) {
+                        filterCursor = filterCursor->children.at(line).get();
+                }
+            }catch(std::out_of_range &e){}
+            return filterCursor->isAllowed(method);
+        }catch (std::out_of_range& e) {
+            return true;
         }
-        return filterCursor->isAllowed(method);
     }
 
     void HttpServerImpl::Filter(unsigned short port,const std::string &url, std::vector<HttpMethod>& method) {

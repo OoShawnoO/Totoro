@@ -1,5 +1,5 @@
-#ifndef TOTOROSERVER_CHANNEL_H
-#define TOTOROSERVER_CHANNEL_H
+#ifndef TOTORO_CHANNEL_H
+#define TOTORO_CHANNEL_H
 
 #include <mutex>                /* mutex */
 #include <condition_variable>   /* condition_variable */
@@ -81,4 +81,4 @@ namespace totoro {
     };
 } // totoro
 
-#endif //TOTOROSERVER_CHANNEL_H
+#endif //TOTORO_CHANNEL_H

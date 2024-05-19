@@ -1,9 +1,9 @@
-#ifndef TOTOROSERVER_THREADPOOL_H
-#define TOTOROSERVER_THREADPOOL_H
+#ifndef TOTORO_THREADPOOL_H
+#define TOTORO_THREADPOOL_H
 
 #include <atomic>           /* atomic */
 #include <vector>           /* vector */
-#include "AsyncLogger.h"    /* AsyncLogger */
+#include "Mole.h"    /* AsyncLogger */
 #include "Channel.h"        /* Channel */
 
 
@@ -30,7 +30,7 @@ namespace totoro {
         explicit ThreadPool(int _threadCount = 8,int _maxWorkCount = 8196)
         : threadCount(_threadCount),maxWorkCount(_maxWorkCount){
             if(threadCount <= 0 || maxWorkCount <= 0){
-                LOG_ERROR("ThreadPool","thread count or max process count should >= 0");
+                MOLE_ERROR("ThreadPool","thread count or max process count should >= 0");
                 exit(-1);
             }
             for(int i=0;i<threadCount;i++){
@@ -39,7 +39,7 @@ namespace totoro {
         }
         bool Add(Ptr& ptr){
             if(workChan.size() >= maxWorkCount){
-                LOG_WARN("ThreadPool","thread pool overload");
+                MOLE_WARN("ThreadPool","thread pool overload");
                 return false;
             }
             workChan.push(ptr);
@@ -49,4 +49,4 @@ namespace totoro {
 
 } // totoro
 
-#endif //TOTOROSERVER_THREADPOOL_H
+#endif //TOTORO_THREADPOOL_H

@@ -4,8 +4,8 @@
 #include "core/Configure.h"
 #include "core/SSLSocket.h"
 
-const std::string SSLContextChan = "SSLContextChan";
-const std::string SSLSocketChan = "SSLSocket";
+const std::string SSLContextChan = "Totoro";
+const std::string SSLSocketChan = "Totoro";
 namespace totoro {
     /* SSLContext Impl */
     SSLContext::SSLContext(const std::string& CA,const std::string& CERT,const std::string& PRIVATE) {
@@ -15,16 +15,16 @@ namespace totoro {
         context = SSL_CTX_new(SSLv23_server_method());
 
         if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
             exit(-1);
         }
         if(SSL_CTX_use_PrivateKey_file(context,PRIVATE.c_str(),SSL_FILETYPE_PEM)<=0){
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
             exit(-1);
         }
 
         if(SSL_CTX_check_private_key(context)<=0) {
-            LOG_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
             exit(-1);
         }
     }
@@ -35,7 +35,11 @@ namespace totoro {
     }
 
     SSLContext &SSLSocket::GetContext() {
-        static SSLContext context(Configure::Get()["CA-CERT"],Configure::Get()["SERVER-CERT"],Configure::Get()["SERVER-KEY"]);
+        static SSLContext context(
+                Configure::config.conf["ca-cert"],
+                Configure::config.conf["server-cert"],
+                Configure::config.conf["server-key"]
+        );
         return context;
     }
 
@@ -52,7 +56,11 @@ namespace totoro {
     }
 
     SSLClientContext &SSLSocket::GetClientContext() {
-        static SSLClientContext context(Configure::Get()["CA-CERT"],Configure::Get()["CLIENT-CERT"],Configure::Get()["CLIENT-KEY"]);
+        static SSLClientContext context(
+                Configure::config.conf["ca-cert"],
+                Configure::config.conf["client-cert"],
+                Configure::config.conf["client-key"]
+        );
         return context;
     }
     /* SSLSocket Impl */
@@ -63,10 +71,10 @@ namespace totoro {
             needSend = writeTotalBytes - writeCursor;
             if((hadSend = SSL_write(connection,data + writeCursor,(int)needSend)) <= 0){
                 if(hadSend == 0){
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
                 return -1;
             }
             writeCursor += hadSend;
@@ -90,14 +98,14 @@ namespace totoro {
             needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
             if((hadRecv = SSL_read(connection,buffer,(int)needRecv)) <= 0){
                 if(hadRecv == 0) {
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     if(readTotalBytes == SIZE_MAX){
                         shutdown(sock,SHUT_RDWR);
                         return 0;
                     }
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
                 return -1;
             }
             data.append(buffer,hadRecv);
@@ -140,7 +148,7 @@ namespace totoro {
         if(isNew){
             file = open(filePath.c_str(),O_RDONLY);
             if(file < 0){
-                LOG_ERROR(SSLSocketChan,strerror(errno));
+                MOLE_ERROR(SSLSocketChan,strerror(errno));
                 return -1;
             }
             memset(&stat,0,sizeof(stat));
@@ -148,7 +156,7 @@ namespace totoro {
             writeTotalBytes = stat.st_size;
             writeCursor = 0;
             if(SSL_write(connection,&writeTotalBytes,sizeof(writeTotalBytes)) <= 0){
-                LOG_ERROR(SSLSocketChan, strerror(errno));
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
                 return -1;
             }
         }
@@ -157,15 +165,15 @@ namespace totoro {
         while(writeCursor < writeTotalBytes){
             needSend = writeTotalBytes - writeCursor > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (int)(writeTotalBytes - writeCursor);
             if(read(file,buffer,needSend) <= 0){
-                LOG_ERROR(SSLSocketChan,"file read failed");
+                MOLE_ERROR(SSLSocketChan,"file read failed");
                 return -1;
             }
             if((hadSend = SSL_write(connection,buffer,needSend)) <= 0){
                 if(hadSend == 0) {
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
                 return -1;
             }
             writeCursor += hadSend;
@@ -180,7 +188,7 @@ namespace totoro {
         if(isNew){
             file = open(filePath.c_str(),O_RDONLY);
             if(file < 0){
-                LOG_ERROR(SSLSocketChan,strerror(errno));
+                MOLE_ERROR(SSLSocketChan,strerror(errno));
                 return -1;
             }
             memset(&stat,0,sizeof(stat));
@@ -193,15 +201,15 @@ namespace totoro {
         while(writeCursor < writeTotalBytes){
             needSend = writeTotalBytes - writeCursor > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (int)(writeTotalBytes - writeCursor);
             if(read(file,buffer,needSend) <= 0){
-                LOG_ERROR(SSLSocketChan,"file read failed");
+                MOLE_ERROR(SSLSocketChan,"file read failed");
                 return -1;
             }
             if((hadSend = SSL_write(connection,buffer,needSend)) <= 0){
                 if(hadSend == 0) {
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
                 return -1;
             }
             writeCursor += hadSend;
@@ -230,7 +238,7 @@ namespace totoro {
         if(isNew){
             size_t size;
             if(SSL_read(connection,&size,sizeof(size)) < 0){
-                LOG_ERROR(SSLSocketChan, strerror(errno));
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
                 return -1;
             }
             readCursor = 0;
@@ -247,10 +255,10 @@ namespace totoro {
                 close(file);
                 file = -1;
                 if(hadRecv == 0) {
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
             }
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
@@ -277,10 +285,10 @@ namespace totoro {
                 close(file);
                 file = -1;
                 if(hadRecv == 0) {
-                    LOG_INFO(SSLSocketChan,"ssl connection closed");
+                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
                     return -1;
                 }
-                LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
             }
             write(file,buffer,hadRecv);
             readCursor += hadRecv;
@@ -352,19 +360,19 @@ namespace totoro {
     int SSLSocket::InitSSL() {
         connection = SSL_new(GetContext().context);
         if(!connection){
-            LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
             return -1;
         }
         if(SSL_set_fd(connection,sock) <= 0){
-            LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
             return -1;
         }
         if(SSL_accept(connection) <= 0){
-            LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
             return -1;
         }
         if (SSL_is_init_finished(connection) <= 0) {
-            LOG_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
+            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
             return -1;
         }
         return 1;
@@ -377,19 +385,19 @@ namespace totoro {
         if(!connection){
             connection = SSL_new(GetClientContext().context);
             if(!connection){
-                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
                 return false;
             }
             if(SSL_set_fd(connection,sock) <= 0){
-                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
                 return false;
             }
             if(SSL_connect(connection) <= 0){
-                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
                 return false;
             }
             if(SSL_is_init_finished(connection) <= 0){
-                LOG_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
                 return false;
             }
         }

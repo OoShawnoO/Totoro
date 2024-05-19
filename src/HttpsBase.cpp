@@ -1,6 +1,6 @@
 #include "core/HttpsBase.h"
 
-const std::string HttpsBaseChan = "HttpsBase";
+const std::string HttpsBaseChan = "Totoro";
 namespace totoro {
     int HttpsBase::Close() {
         return SSLSocket::Close();

@@ -2,16 +2,16 @@
 #include "Forwarder.h"
 #include "fmt/format.h"
 
-const std::string HttpReverseForwarderChan = "HttpReverseForwarder";
-const std::string HttpsReverseForwarderChan = "HttpsReverseForwarder";
-const std::string HttpsForwardForwarderChan = "HttpsForwardForwarder";
-const std::string HttpForwardForwarderChan = "HttpForwardForwarder";
+const std::string HttpReverseForwarderChan = "Totoro";
+const std::string HttpsReverseForwarderChan = "Totoro";
+const std::string HttpsForwardForwarderChan = "Totoro";
+const std::string HttpForwardForwarderChan = "Totoro";
 namespace totoro {
     /* region HttpForwardForwarder */
     int HttpForwardForwarder::InitForwarder() {
         auto host = requestHeader.GetFields().find("Host");
         if(host == requestHeader.GetFields().end() || host->second.empty()){
-            LOG_ERROR(HttpForwardForwarderChan,"host not found");
+            MOLE_ERROR(HttpForwardForwarderChan,"host not found");
             return -1;
         }
         std::string ip,hostAddr = host->second[0];
@@ -26,7 +26,7 @@ namespace totoro {
         }
         auto hostEntry = gethostbyname(ip.c_str());
         if(!hostEntry){
-            LOG_ERROR(HttpForwardForwarderChan,"can't parse ip address:" + ip);
+            MOLE_ERROR(HttpForwardForwarderChan,"can't parse ip address:" + ip);
             return -1;
         }
         forwarder.TCPSocket::Init();
@@ -40,15 +40,15 @@ namespace totoro {
             }
         }
         if(!connected){
-            LOG_ERROR(HttpForwardForwarderChan,"can't connect destination address");
+            MOLE_ERROR(HttpForwardForwarderChan,"can't connect destination address");
             return -1;
         }
         if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
-            LOG_ERROR(HttpForwardForwarderChan,"unable to add forward pair");
+            MOLE_ERROR(HttpForwardForwarderChan,"unable to add forward pair");
             return -1;
         }
         if(EpollAdd(forwarder.Sock()) < 0){
-            LOG_ERROR(HttpForwardForwarderChan, strerror(errno));
+            MOLE_ERROR(HttpForwardForwarderChan, strerror(errno));
             return -1;
         }
         return 1;
@@ -89,7 +89,7 @@ namespace totoro {
         }
         int ret = forwarder.SendAll(requestText);
         if(ret < 0){
-            LOG_ERROR(HttpForwardForwarderChan,"forwarder send request failed");
+            MOLE_ERROR(HttpForwardForwarderChan,"forwarder send request failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -105,7 +105,7 @@ namespace totoro {
         }
         int ret = SendAll(forwarder.responseText);
         if(ret < 0){
-            LOG_ERROR(HttpForwardForwarderChan,"send response failed");
+            MOLE_ERROR(HttpForwardForwarderChan,"send response failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -142,7 +142,7 @@ namespace totoro {
         }
         auto hostEntry = gethostbyname(ip.c_str());
         if(!hostEntry){
-            LOG_ERROR(HttpsForwardForwarderChan,"can't parse ip address:" + ip);
+            MOLE_ERROR(HttpsForwardForwarderChan,"can't parse ip address:" + ip);
             return -1;
         }
         bool connected = false;
@@ -155,11 +155,11 @@ namespace totoro {
             }
         }
         if(!connected){
-            LOG_ERROR(HttpsForwardForwarderChan,"can't connect destination address");
+            MOLE_ERROR(HttpsForwardForwarderChan,"can't connect destination address");
             return -1;
         }
         if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
-            LOG_ERROR(HttpsForwardForwarderChan,"unable to add forward pair");
+            MOLE_ERROR(HttpsForwardForwarderChan,"unable to add forward pair");
             return -1;
         }
         return 1;
@@ -209,7 +209,7 @@ namespace totoro {
         }
         int ret = forwarder.SendAll(requestText);
         if(ret < 0){
-            LOG_ERROR(HttpForwardForwarderChan,"forwarder send request failed");
+            MOLE_ERROR(HttpForwardForwarderChan,"forwarder send request failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -223,7 +223,7 @@ namespace totoro {
         if(!connection) {
             int ret = TCPSocket::SendAll(fmt::format("{} 200 Connection established\r\n\r\n",HttpVersionMap.at(requestHeader.GetVersion())));
             if(ret < 0){
-                LOG_ERROR(HttpForwardForwarderChan,"send response failed");
+                MOLE_ERROR(HttpForwardForwarderChan,"send response failed");
                 return FAILED;
             }else if(ret == 0){
                 return AGAIN;
@@ -235,7 +235,7 @@ namespace totoro {
         }
         int ret = SendAll(forwarder.responseText);
         if(ret < 0){
-            LOG_ERROR(HttpForwardForwarderChan,"send response failed");
+            MOLE_ERROR(HttpForwardForwarderChan,"send response failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -249,7 +249,7 @@ namespace totoro {
                 return FAILED;
             }
             if(EpollAdd(forwarder.Sock()) < 0){
-                LOG_ERROR(HttpsForwardForwarderChan, strerror(errno));
+                MOLE_ERROR(HttpsForwardForwarderChan, strerror(errno));
                 return FAILED;
             }
             return SUCCESS;
@@ -276,7 +276,7 @@ namespace totoro {
         static std::unordered_map<std::string,int> candidateServersConnectionNum;
         static bool isInit = true;
         if(isInit){
-            auto reverseProxyMap = Configure::Get()["HTTP_REVERSE_PROXY"];
+            auto reverseProxyMap = Configure::config.conf["http-reverse-proxy"];
             for(auto items = reverseProxyMap.cbegin(); items != reverseProxyMap.cend(); items++) {
                 std::vector<std::pair<std::string,unsigned short>> servers;
                 for(const auto& item : items.value()){
@@ -284,7 +284,7 @@ namespace totoro {
                 }
                 auto ret = candidateServers.insert({items.key(),std::move(servers)});
                 if(!ret.second){
-                    LOG_ERROR(HttpReverseForwarderChan,"candidate server insert failed");
+                    MOLE_ERROR(HttpReverseForwarderChan,"candidate server insert failed");
                     exit(-1);
                 }
             }
@@ -292,7 +292,7 @@ namespace totoro {
         }
         auto candidateServersIter = candidateServers.end();
         if((candidateServersIter = candidateServers.find(port)) == candidateServers.end()){
-            LOG_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
+            MOLE_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
             exit(-1);
         }
         auto candidateNum = (candidateServersConnectionNum[port]++)%candidateServersIter->second.size();
@@ -306,7 +306,7 @@ namespace totoro {
 
         auto hostEntry = gethostbyname(ip.c_str());
         if(!hostEntry){
-            LOG_ERROR(HttpReverseForwarderChan,"can't parse ip address:" + ip);
+            MOLE_ERROR(HttpReverseForwarderChan,"can't parse ip address:" + ip);
             return -1;
         }
         bool connected = false;
@@ -319,15 +319,15 @@ namespace totoro {
             }
         }
         if(!connected){
-            LOG_ERROR(HttpReverseForwarderChan,"can't connect destination address");
+            MOLE_ERROR(HttpReverseForwarderChan,"can't connect destination address");
             return -1;
         }
         if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
-            LOG_ERROR(HttpReverseForwarderChan,"unable to add forward pair");
+            MOLE_ERROR(HttpReverseForwarderChan,"unable to add forward pair");
             return -1;
         }
         if(EpollAdd(forwarder.Sock()) < 0){
-            LOG_ERROR(HttpReverseForwarderChan, strerror(errno));
+            MOLE_ERROR(HttpReverseForwarderChan, strerror(errno));
             return -1;
         }
         return 1;
@@ -368,7 +368,7 @@ namespace totoro {
         }
         int ret = forwarder.SendAll(requestText);
         if(ret < 0){
-            LOG_ERROR(HttpReverseForwarderChan,"forwarder send request failed");
+            MOLE_ERROR(HttpReverseForwarderChan,"forwarder send request failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -384,7 +384,7 @@ namespace totoro {
         }
         int ret = SendAll(forwarder.responseText);
         if(ret < 0){
-            LOG_ERROR(HttpReverseForwarderChan,"send response failed");
+            MOLE_ERROR(HttpReverseForwarderChan,"send response failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -414,7 +414,7 @@ namespace totoro {
         static std::unordered_map<std::string,int> candidateServersConnectionNum;
         static bool isInit = true;
         if(isInit){
-            auto reverseProxyMap = Configure::Get()["HTTPS_REVERSE_PROXY"];
+            auto reverseProxyMap = Configure::config.conf["https-reverse-proxy"];
             for(auto items = reverseProxyMap.cbegin(); items != reverseProxyMap.cend(); items++) {
                 std::vector<std::pair<std::string,unsigned short>> servers;
                 for(const auto& item : items.value()){
@@ -422,7 +422,7 @@ namespace totoro {
                 }
                 auto ret = candidateServers.insert({items.key(),std::move(servers)});
                 if(!ret.second){
-                    LOG_ERROR(HttpsReverseForwarderChan,"candidate server insert failed");
+                    MOLE_ERROR(HttpsReverseForwarderChan,"candidate server insert failed");
                     exit(-1);
                 }
             }
@@ -430,7 +430,7 @@ namespace totoro {
         }
         auto candidateServersIter = candidateServers.end();
         if((candidateServersIter = candidateServers.find(port)) == candidateServers.end()){
-            LOG_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
+            MOLE_ERROR(HttpReverseForwarderChan,"candidate server find port failed");
             exit(-1);
         }
         auto candidateNum = (candidateServersConnectionNum[port]++)%candidateServersIter->second.size();
@@ -444,7 +444,7 @@ namespace totoro {
 
         auto hostEntry = gethostbyname(ip.c_str());
         if(!hostEntry){
-            LOG_ERROR(HttpsReverseForwarderChan,"can't parse ip address:" + ip);
+            MOLE_ERROR(HttpsReverseForwarderChan,"can't parse ip address:" + ip);
             return -1;
         }
         bool connected = false;
@@ -457,15 +457,15 @@ namespace totoro {
             }
         }
         if(!connected){
-            LOG_ERROR(HttpsReverseForwarderChan,"can't connect destination address");
+            MOLE_ERROR(HttpsReverseForwarderChan,"can't connect destination address");
             return -1;
         }
         if(!forwardCandidateMap->insert({forwarder.Sock(), sock}).second){
-            LOG_ERROR(HttpsReverseForwarderChan,"unable to add forward pair");
+            MOLE_ERROR(HttpsReverseForwarderChan,"unable to add forward pair");
             return -1;
         }
         if(EpollAdd(forwarder.Sock()) < 0){
-            LOG_ERROR(HttpsReverseForwarderChan, strerror(errno));
+            MOLE_ERROR(HttpsReverseForwarderChan, strerror(errno));
             return -1;
         }
         return 1;
@@ -506,13 +506,13 @@ namespace totoro {
         }
         if(forwarder.Sock() == BAD_FILE_DESCRIPTOR){
             if(InitForwarder() < 0) {
-                LOG_ERROR(HttpsReverseForwarderChan,"init forwarder failed");
+                MOLE_ERROR(HttpsReverseForwarderChan,"init forwarder failed");
                 return FAILED;
             }
         }
         int ret = forwarder.SendAll(requestText);
         if(ret < 0){
-            LOG_ERROR(HttpsReverseForwarderChan,"forwarder send request failed");
+            MOLE_ERROR(HttpsReverseForwarderChan,"forwarder send request failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;
@@ -528,7 +528,7 @@ namespace totoro {
         }
         int ret = SendAll(forwarder.responseText);
         if(ret < 0){
-            LOG_ERROR(HttpsReverseForwarderChan,"send response failed");
+            MOLE_ERROR(HttpsReverseForwarderChan,"send response failed");
             return FAILED;
         }else if(ret == 0){
             return AGAIN;

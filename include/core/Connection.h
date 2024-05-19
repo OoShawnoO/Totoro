@@ -1,5 +1,5 @@
-#ifndef TOTOROSERVER_CONNECTION_H
-#define TOTOROSERVER_CONNECTION_H
+#ifndef TOTORO_CONNECTION_H
+#define TOTORO_CONNECTION_H
 
 #include "core/Socket.h"     /* Socket */
 #include "core/Configure.h"  /* Configure */
@@ -25,16 +25,14 @@ namespace totoro {
         sockaddr_in destAddr                        {};
         // 从属epoll实例id     /  dependent epoll instance ID
         EpollID epollId                             {BAD_FILE_DESCRIPTOR};
-        // 边缘触发            /  edge triggle
-        bool edgeTriggle                            {false};
+        // 边缘触发            /  edge trigger
+        bool edgeTrigger                            {false};
         // one shot            /  one shot
         bool oneShot                                {true};
         // ip 过滤器           /  ip filter
         IPFilter* filter                            {nullptr};
         // 转发候选表          / forward candidate map
         ForwardCandidateMap* forwardCandidateMap    {nullptr};
-        // 关闭队列            / close queue
-        Channel<SocketID>* closeChan                {nullptr};
     };
 
     /**
@@ -78,8 +76,8 @@ namespace totoro {
         Status status                               {None};
         // 上次事件状态 / Last event status
         Status lastStatus                           {None};
-        // 边界触发 / Edge triggle
-        bool edgeTriggle                            {false};
+        // 边界触发 / Edge trigger
+        bool edgeTrigger                            {false};
         // Oneshot 模式 / Oneshot model
         bool oneShot                                {true};
         // IP过滤器 / IP Filter
@@ -101,4 +99,4 @@ namespace totoro {
 
 } // totoro
 
-#endif //TOTOROSERVER_CONNECTION_H
+#endif //TOTORO_CONNECTION_H

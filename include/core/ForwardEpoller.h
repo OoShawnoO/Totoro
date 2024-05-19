@@ -1,5 +1,5 @@
-#ifndef TOTORO_FORWARDEPOLLER_H
-#define TOTORO_FORWARDEPOLLER_H
+#ifndef TOTORO_FORWARD_EPOLLER_H
+#define TOTORO_FORWARD_EPOLLER_H
 
 #include "Epoller.h"
 
@@ -12,11 +12,11 @@ namespace totoro {
                 typename Epoller<T>::ForwardCandidateMapIterator forwardIter;
                 if((Epoller<T>::forwardIter = Epoller<T>::forwardCandidateMap.find(cur)) != Epoller<T>::forwardCandidateMap.end()){
                     if((mapIterator = Epoller<T>::connectionMap.find(forwardIter->second)) == Epoller<T>::connectionMap.end()){
-                        LOG_ERROR(EpollerChan,"not found connection for forward socket");
+                        MOLE_ERROR(EpollerChan,"not found connection for forward socket");
                         return false;
                     }
                     if(!Epoller<T>::connectionMap.insert({cur,mapIterator->second}).second){
-                        LOG_ERROR(EpollerChan,"can't insert forward socket to connection map");
+                        MOLE_ERROR(EpollerChan,"can't insert forward socket to connection map");
                         return false;
                     }
                     Epoller<T>::forwardCandidateMap.erase(forwardIter);
@@ -29,18 +29,18 @@ namespace totoro {
 
                 if(!Epoller<T>::connectionPool.acquire(conn)){
                     close(cur);
-                    LOG_ERROR(EpollerChan,"connection pool acquire failed");
+                    MOLE_ERROR(EpollerChan,"connection pool acquire failed");
                     return false;
                 }
 
                 if(getsockname(cur,(sockaddr*)&myAddr,&addrLen) < 0){
                     close(cur);
-                    LOG_ERROR(EpollerChan,"can't get sock my address");
+                    MOLE_ERROR(EpollerChan,"can't get sock my address");
                     return false;
                 }
                 if(getpeername(cur,(sockaddr*)&destAddr,&addrLen) < 0){
                     close(cur);
-                    LOG_ERROR(EpollerChan,"can't get sock dest address");
+                    MOLE_ERROR(EpollerChan,"can't get sock dest address");
                     return false;
                 }
 
@@ -58,14 +58,14 @@ namespace totoro {
 
                 result = Epoller<T>::connectionMap.insert({cur,conn});
                 if(!result.second){
-                    LOG_ERROR(EpollerChan,"connectionMap already have key");
+                    MOLE_ERROR(EpollerChan,"connectionMap already have key");
                     conn->Close();
                     Epoller<T>::connectionPool.release(conn);
                     return false;
                 }
                 Epoller<T>::currentConnectCount++;
                 mapIterator = result.first;
-                LOG_TRACE(EpollerChan,std::to_string(cur) + " new connection added");
+                MOLE_TRACE(EpollerChan,std::to_string(cur) + " new connection added");
             }
             return true;
         }
@@ -73,7 +73,7 @@ namespace totoro {
     public:
         void DelConnection(std::shared_ptr<T> &conn) override {
             if(EpollDel(conn->Sock())<0){
-                LOG_ERROR(EpollerChan, strerror(errno));
+                MOLE_ERROR(EpollerChan, strerror(errno));
             }
             int sock = conn->Sock();
             int ret = conn->Close();
@@ -89,4 +89,4 @@ namespace totoro {
 
 } // totoro
 
-#endif //TOTORO_FORWARDEPOLLER_H
+#endif //TOTORO_FORWARD_EPOLLER_H
