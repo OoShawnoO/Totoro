@@ -1,11 +1,12 @@
 #ifndef TOTORO_HTTPBASE_H
 #define TOTORO_HTTPBASE_H
 
-#include "Connection.h"     /* Connection */
+#include <list>
+#include "core/Connection.h"     /* Connection */
 
 namespace totoro {
     // HTTP Form 详细信息 / HTTP Form Detail
-    struct HttpMultiPartDetail{
+    struct HttpMultiPartDetail {
         std::string contentType;
         std::string fileName;
         std::string data;
@@ -13,17 +14,19 @@ namespace totoro {
     // HTTP 内容数据类型 / HTTP Content Data Type
     using HttpContentDataType = std::string;
     // HTTP 请求参数类型 / HTTP Request Parameter Type
-    using HttpParameterType = std::unordered_map<std::string,std::string>;
+    using HttpParameterType = std::unordered_map<std::string, std::string>;
     // HTTP 头字段类型 / HTTP Header Fields Type
-    using HttpHeaderFieldsType = std::unordered_map<std::string,std::vector<std::string>>;
+    using HttpHeaderFieldsType = std::unordered_map<std::string, std::vector<std::string>>;
     // HTTP 表单数据类型 / HTTP Form FieldsType
-    using HttpFormType = std::unordered_map<std::string,std::string>;
+    using HttpFormType = std::unordered_map<std::string, std::string>;
     // HTTP 多分界数据类型 / HTTP Multiple-part Data Type
-    using HttpMultiPartType = std::unordered_map<std::string,HttpMultiPartDetail>;
+    using HttpMultiPartType = std::unordered_map<std::string, HttpMultiPartDetail>;
     // HTTP Cookie 类型 / HTTP Cookie Data Type
-    using HttpCookieType = std::unordered_map<std::string,std::string>;
+    using HttpCookieType = std::unordered_map<std::string, std::string>;
 
-    enum HttpMethod { GET,POST,PUT,PATCH,DELETE,TRACE,HEAD,OPTIONS,CONNECT };
+    enum HttpMethod {
+        GET, POST, PUT, PATCH, DELETE, TRACE, HEAD, OPTIONS, CONNECT
+    };
     enum class HttpStatus : int32_t {
         Continue = 100,
         Switching_Protocols = 101,
@@ -73,12 +76,14 @@ namespace totoro {
         Unavailable_For_Legal_Reasons = 451,
         Internal_Server_Error = 500
     };
-    enum HttpVersion { HTTP11,HTTP10,HTTP20,HTTP30};
+    enum HttpVersion {
+        HTTP11, HTTP10, HTTP20, HTTP30
+    };
 
     extern const std::unordered_map<HttpStatus, std::string> HttpStatusMap;
-    extern std::unordered_map<HttpVersion,std::string> HttpVersionMap;
-    extern std::unordered_map<std::string,HttpVersion> ReverseHttpVersionMap;
-    extern std::unordered_map<std::string,std::string> HttpContentTypeMap;
+    extern std::unordered_map<HttpVersion, std::string> HttpVersionMap;
+    extern std::unordered_map<std::string, HttpVersion> ReverseHttpVersionMap;
+    extern std::unordered_map<std::string, std::string> HttpContentTypeMap;
     extern const std::string HttpErrorTemplateHtml;
 
     /**
@@ -86,18 +91,14 @@ namespace totoro {
      */
 
     class HttpBase : public virtual Connection {
-    protected:
-        enum HttpParseStatus {
-            ParseOk,RecvHeader,ParseHeader,RecvBody,ParseBody,SendHeader,SendBody,SendOk
-        };
 
-        CallbackReturnType ReadCallback() override;
-        CallbackReturnType AfterReadCallback() override;
-        CallbackReturnType WriteCallback() override;
-        CallbackReturnType AfterWriteCallback() override;
+    protected:
+
+        void Handler() override;
+
     public:
         // 请求头信息 / Request Header Information
-        struct RequestHeader{
+        struct RequestHeader {
         private:
             // HTTP版本 / Http Version
             HttpVersion version;
@@ -113,54 +114,77 @@ namespace totoro {
             HttpCookieType cookies;
             // 多分界数据分界线 / Multiple-part Boundary
             std::string boundary;
+
             // 解析url参数 / Parse url parameters
-            void parseParameters(std::string&& parameterText);
+            void parseParameters(std::string &&parameterText);
+
         public:
             // 解析请求头 / Parse request header
-            bool Parse(std::string& requestHeaderData);
+            bool Parse(std::string &requestHeaderData);
+
             // 获取请求方法 / Get request method
-            const HttpMethod& GetMethod() const;
+            const HttpMethod &GetMethod() const;
+
             // 设置请求方法 / Set request method
             void SetMethod(HttpMethod method);
+
             // 获取请求内容类型 / Get request content type
-            const HttpContentDataType& GetContentType() const;
+            const HttpContentDataType &GetContentType() const;
+
             // 设置请求内容类型 / Set request content type
-            void SetContentType(const std::string& contentType);
+            void SetContentType(const std::string &contentType);
+
             // 获取请求内容长度 / Get request content length
             size_t GetContentLength() const;
+
             // 设置请求内容长度 / Set request content length
             void SetContentLength(size_t size);
+
             // 获取请求cookies / Get request cookies
-            const HttpCookieType& GetCookies() const;
+            const HttpCookieType &GetCookies() const;
+
             // 设置请求cookies / Set reqeust cookies
-            void SetCookie(const std::string& key,const std::string& value);
+            void SetCookie(const std::string &key, const std::string &value);
+
             // 获取请求HTTP版本 / Get request HTTP version
-            const HttpVersion& GetVersion() const;
+            const HttpVersion &GetVersion() const;
+
             // 设置请求HTTP版本 / Set reqeust HTTP version
             void SetVersion(HttpVersion version);
+
             // 获取请求url / Get request url
-            const std::string& GetUrl() const;
+            const std::string &GetUrl() const;
+
             // 设置请求url / Set request url
-            void SetUrl(const std::string& url);
+            void SetUrl(const std::string &url);
+
             // 获取请求参数 / Get request parameters
-            const HttpParameterType& GetParameters() const;
+            const HttpParameterType &GetParameters() const;
+
             // 设置请求参数 / Set request parameters
-            void SetParameters(const std::string& key,const std::string& value);
+            void SetParameters(const std::string &key, const std::string &value);
+
             // 获取请求字段 / Get request fields
-            const HttpHeaderFieldsType& GetFields() const;
+            const HttpHeaderFieldsType &GetFields() const;
+
             // 设置请求字段 / Set request field
-            void SetField(const std::string& key,const std::vector<std::string>& values);
+            void SetField(const std::string &key, const std::vector<std::string> &values);
+
             // 获取多分界数据分界线 / Get request multi-part boundary
-            const std::string& GetBoundary() const;
+            const std::string &GetBoundary() const;
+
             // 设置多分界数据分界线 / Set request multi-part boundary
-            void SetBoundary(const std::string& boundary);
+            void SetBoundary(const std::string &boundary);
+
             // 字符串化 / To string
             std::string toString();
+
             // 清除 / Clear
             void Clear();
         };
+
         // 请求体信息 / Request Body Information
-        struct RequestBody{
+        struct RequestBody {
             friend struct RequestHeader;
         private:
             // 表单数据 / Form Data
@@ -171,36 +195,52 @@ namespace totoro {
             Json json;
         public:
             // 解析请求体 / Parse request body
-            bool Parse(const std::string& requestBodyData,const RequestHeader& header);
+            bool Parse(const std::string &requestBodyData, const RequestHeader &header);
+
             // 获取请求体Json数据 / Get request body Json data
-            const Json& GetJson() const;
+            const Json &GetJson() const;
+
             // 设置请求体Json数据 / Set request body Json data
-            void SetJson(const Json& json);
+            void SetJson(const Json &json);
+
             // 获取请求体Form数据 / Get request body Form data
-            const HttpFormType& GetForm() const;
-            void SetForm(const HttpFormType& form);
+            const HttpFormType &GetForm() const;
+
+            void SetForm(const HttpFormType &form);
+
             // 获取请求体Form数据字段 / Get request body Form field data
-            std::string GetFormField(const std::string& name);
+            std::string GetFormField(const std::string &name);
+
             // 设置请求体Form数据字段 / Set request body Form field data
-            void SetFormField(const std::string& key,const std::string& value);
+            void SetFormField(const std::string &key, const std::string &value);
+
             // 获取请求体文件 / Get request body files
-            const HttpMultiPartType& GetFiles() const;
+            const HttpMultiPartType &GetFiles() const;
+
             // 获取请求体文件数据 / Get request body file data
-            std::string GetFilesFieldData(const std::string& name);
+            std::string GetFilesFieldData(const std::string &name);
+
             // 设置请求体文件数据 / Set request body file data
-            void SetFilesFieldData(const std::string& name,const HttpMultiPartDetail& detail);
+            void SetFilesFieldData(const std::string &name, const HttpMultiPartDetail &detail);
+
             // 获取请求体对应name字段文件名数据 / Get request body file data cross name
-            std::string GetFilesFieldFileName(const std::string& name);
+            std::string GetFilesFieldFileName(const std::string &name);
+
             // 获取请求体对应name字段文件内容 / Get request body file content cross name
-            std::string GetFilesFieldContentType(const std::string& name);
+            std::string GetFilesFieldContentType(const std::string &name);
+
             // 下载请求体中文件 / Download files in request body
-            bool DownloadFilesField(const std::string& fieldName,const std::string& destFilePath,std::string fileName = "") const;
+            bool DownloadFilesField(const std::string &fieldName, const std::string &destFilePath,
+                                    std::string fileName = "") const;
+
             // 字符串化 / To string
-            std::string toString(const RequestHeader& header) const;
+            std::string toString(const RequestHeader &header) const;
+
             void Clear();
         };
+
         // 响应头信息 / Response Header Information
-        struct ResponseHeader{
+        struct ResponseHeader {
         private:
             // HTTP版本 / Http Version
             HttpVersion version;
@@ -211,37 +251,52 @@ namespace totoro {
             //
         public:
             // 解析响应头 / Parse response header
-            bool Parse(std::string& responseHeaderData);
+            bool Parse(std::string &responseHeaderData);
+
             // 获取请求内容类型 / Get request content type
-            const HttpContentDataType& GetContentType() const;
+            const HttpContentDataType &GetContentType() const;
+
             // 获取请求内容长度 / Get request content length
             size_t GetContentLength() const;
+
             // 获取传输编码 / Get transfer encoding
             std::string GetTransferEncoding() const;
+
             // 获取HTTP版本 / Get HTTP version
             HttpVersion GetVersion() const;
+
             // 设置HTTP版本 / Set HTTP version
             void SetVersion(HttpVersion version);
+
             // 获取状态码 / Get Status
             HttpStatus GetStatus() const;
+
             // 设置状态码 / Set Status
             void SetStatus(HttpStatus status);
+
             // 设置内容类型 / Set content type
-            void SetContentType(const std::string& contentType);
+            void SetContentType(const std::string &contentType);
+
             // 设置内容长度 / Set content length
             void SetContentLength(size_t length);
+
             // 设置cookie / Set cookie
-            void SetCookie(const std::string& cookieKey,const std::string& cookieValue);
+            void SetCookie(const std::string &cookieKey, const std::string &cookieValue);
+
             // 获取字段 / Get fields
-            const HttpHeaderFieldsType& GetFields() const;
+            const HttpHeaderFieldsType &GetFields() const;
+
             // 设置字段 / Set field
-            void SetField(const std::string& fieldKey,const std::vector<std::string>& fieldValues);
+            void SetField(const std::string &fieldKey, const std::vector<std::string> &fieldValues);
+
             // 字符串化 / To string
             std::string toString();
+
             void Clear();
         };
+
         // 响应体信息 / Response Body Information
-        struct ResponseBody{
+        struct ResponseBody {
         private:
             // 静态资源文件路径 / Static Resource Path
             std::string resourcePath;
@@ -249,83 +304,95 @@ namespace totoro {
             std::string data;
         public:
             // 设置文件资源路径 / Set resource path
-            void SetResourcePath(const std::string& resourcePath);
+            void SetResourcePath(const std::string &resourcePath);
+
             // 获取文件资源路径 / Get resource path
-            const std::string& GetResourcePath() const;
+            const std::string &GetResourcePath() const;
+
             // 设置传输数据 / Set transport data
-            void SetData(std::string& data);
+            void SetData(std::string &data);
+
             // 设置传输数据 / Set transport data
-            void SetData(std::string&& data);
+            void SetData(std::string &&data);
+
             // 获取传输数据 / Get transport data
-            const std::string& GetData() const;
+            std::string&& GetData();
 
             void Clear();
         };
+
         // 请求信息 / Request Information
-        struct HttpRequest{
+        struct HttpRequest {
             // 请求头 / Request header
-            RequestHeader   &header;
+            RequestHeader header;
             // 请求体 / Request body
-            RequestBody     &body;
+            RequestBody body;
         };
         // 响应信息 / Response Information
-        struct HttpResponse{
+        struct HttpResponse {
             // 响应头
-            ResponseHeader  &header;
+            ResponseHeader header;
             // 响应体
-            ResponseBody    &body;
+            ResponseBody body;
         };
+
         // 接收并解析请求 / Recv and parse request
-        CallbackReturnType ParseRequest();
+        bool ParseRequest();
+
         // 接受并解析响应 / Recv and parse response
-        CallbackReturnType ParseResponse();
+        bool ParseResponse();
+
         // 发送请求 / Send Request
-        CallbackReturnType SendRequest();
+        bool PrepareRequest();
+
         // 发送响应 / Send Response
-        CallbackReturnType SendResponse();
-        // 解析状态 / Parse status
-        HttpParseStatus parseStatus                      {RecvHeader};
-        // 请求报文 / Request text
-        std::string requestText;
+        bool PrepareResponse();
+
+        // 请求头报文 / Request header text
+        std::string request_header_text;
         // 请求体报文 / Request body text
-        std::string requestBodyText;
-        // 响应报文 / Response text
-        std::string responseText;
+        std::string request_body_text;
+        // 响应头报文 / Response header text
+        std::string response_header_text;
+        // 响应体报文 / Response body text
+        std::string response_body_text;
         // 响应头结束索引 / Index of response header end
-        size_t responseHeaderEnd;
+        size_t response_end_index;
 
         void Clear();
 
         virtual void RenderStatus(HttpStatus status);
+
     protected:
-        // 请求头信息 / Request Header Information
-        RequestHeader requestHeader;
-        // 请求体信息 / Request Body Information
-        RequestBody requestBody;
-        // 响应头信息 / Response Header Information
-        ResponseHeader responseHeader;
-        // 响应体信息 / Response Body Information
-        ResponseBody responseBody;
         // 请求信息 / Request Information
-        HttpRequest httpRequest{requestHeader,requestBody};
+        HttpRequest httpRequest{};
         // 响应信息 / Response Information
-        HttpResponse httpResponse{responseHeader,responseBody};
+        HttpResponse httpResponse{};
+
         // Get 方法处理 / Get Request Handler
         virtual bool GetHandler();
+
         // Post 方法处理 / Post Request Handler
         virtual bool PostHandler();
+
         // Put 方法处理 / Put Request Handler
         virtual bool PutHandler();
+
         // Patch 方法处理 / Patch Request Handler
         virtual bool PatchHandler();
+
         // Delete 方法处理 / Delete Request Handler
         virtual bool DeleteHandler();
+
         // Trace 方法处理 / Trace Request Handler
         virtual bool TraceHandler();
+
         // Head 方法处理 / Head Request Handler
         virtual bool HeadHandler();
+
         // Options 方法处理 / Options Request Handler
         virtual bool OptionsHandler();
+
         // Connect 方法处理 / Connect Request Handler
         virtual bool ConnectHandler();
 

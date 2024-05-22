@@ -1,30 +1,30 @@
 #include <cstring>
 #include <fcntl.h>
 #include <csignal>
-#include "core/Configure.h"
-#include "core/SSLSocket.h"
+#include "utils/Configure.h"
+#include "utils/SSLSocket.h"
 
 const std::string SSLContextChan = "Totoro";
 const std::string SSLSocketChan = "Totoro";
 namespace totoro {
     /* SSLContext Impl */
-    SSLContext::SSLContext(const std::string& CA,const std::string& CERT,const std::string& PRIVATE) {
+    SSLContext::SSLContext(const std::string &CA, const std::string &CERT, const std::string &PRIVATE) {
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
         context = SSL_CTX_new(SSLv23_server_method());
 
-        if(SSL_CTX_use_certificate_file(context,CERT.c_str(),SSL_FILETYPE_PEM)<=0){
-            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+        if (SSL_CTX_use_certificate_file(context, CERT.c_str(), SSL_FILETYPE_PEM) <= 0) {
+            MOLE_ERROR(SSLContextChan, ERR_error_string(ERR_get_error(), nullptr));
             exit(-1);
         }
-        if(SSL_CTX_use_PrivateKey_file(context,PRIVATE.c_str(),SSL_FILETYPE_PEM)<=0){
-            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+        if (SSL_CTX_use_PrivateKey_file(context, PRIVATE.c_str(), SSL_FILETYPE_PEM) <= 0) {
+            MOLE_ERROR(SSLContextChan, ERR_error_string(ERR_get_error(), nullptr));
             exit(-1);
         }
 
-        if(SSL_CTX_check_private_key(context)<=0) {
-            MOLE_ERROR(SSLContextChan,ERR_error_string(ERR_get_error(),nullptr));
+        if (SSL_CTX_check_private_key(context) <= 0) {
+            MOLE_ERROR(SSLContextChan, ERR_error_string(ERR_get_error(), nullptr));
             exit(-1);
         }
     }
@@ -44,7 +44,7 @@ namespace totoro {
     }
 
     /* SSL Client Context Impl */
-    SSLClientContext::SSLClientContext(const std::string& CA,const std::string &CERT, const std::string &PRIVATE) {
+    SSLClientContext::SSLClientContext(const std::string &CA, const std::string &CERT, const std::string &PRIVATE) {
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
@@ -63,341 +63,163 @@ namespace totoro {
         );
         return context;
     }
+
     /* SSLSocket Impl */
 
-    int SSLSocket::sendImpl(const char *data) {
-        size_t hadSend,needSend;
-        while(writeCursor < writeTotalBytes){
-            needSend = writeTotalBytes - writeCursor;
-            if((hadSend = SSL_write(connection,data + writeCursor,(int)needSend)) <= 0){
-                if(hadSend == 0){
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-                return -1;
-            }
-            writeCursor += hadSend;
-        }
-        writeCursor = 0;
-        writeTotalBytes = 0;
-        isNew = true;
-        return 1;
-    }
-
-    int SSLSocket::recvImpl(std::string &data) {
-        if(readTotalBytes <= 0) return false;
-        ssize_t hadRecv;
-        size_t needRecv;
-        if(readTotalBytes != SIZE_MAX && data.size() < readTotalBytes){
-            data.reserve(readTotalBytes);
-        }
-        bool flag = readTotalBytes == SIZE_MAX;
-        while(readCursor < readTotalBytes){
-            bzero(buffer,SOCKET_BUF_SIZE);
-            needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
-            if((hadRecv = SSL_read(connection,buffer,(int)needRecv)) <= 0){
-                if(hadRecv == 0) {
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    if(readTotalBytes == SIZE_MAX){
-                        shutdown(sock,SHUT_RDWR);
-                        return 0;
-                    }
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-                return -1;
-            }
-            data.append(buffer,hadRecv);
-            readCursor += hadRecv;
-            if(flag){
-                isNew = true;
-                return 0;
-            }
-        }
-        isNew = true;
-        return 1;
-    }
 
     SSLSocket::~SSLSocket() {
         SSLSocket::Close();
     }
 
-
-    int SSLSocket::SendWithHeader(const char *data, size_t size) {
-        if(isNew){
-            writeTotalBytes = size;
-            writeCursor = 0;
-            if(writeTotalBytes <= 1) return -1;
-            header h{writeTotalBytes};
-            if(SSL_write(connection,&h,TCP_HEADER_SIZE) <= 0) return -1;
-            isNew = false;
+    int SSLSocket::InitSSL() {
+        connection = SSL_new(GetContext().context);
+        char buffer[4096] = {0};
+        if (!connection) {
+            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
+            return -1;
         }
-        return SSLSocket::sendImpl(data);
-    }
-
-    int SSLSocket::SendWithHeader(const std::string &data) {
-        return SSLSocket::SendWithHeader(data.c_str(),data.size());
-    }
-
-    int SSLSocket::SendWithHeader(std::string &&data) {
-        return SSLSocket::SendWithHeader(data.c_str(),data.size());
-    }
-
-    int SSLSocket::SendFileWithHeader(const std::string &filePath) {
-        if(isNew){
-            file = open(filePath.c_str(),O_RDONLY);
-            if(file < 0){
-                MOLE_ERROR(SSLSocketChan,strerror(errno));
-                return -1;
-            }
-            memset(&stat,0,sizeof(stat));
-            fstat(file,&stat);
-            writeTotalBytes = stat.st_size;
-            writeCursor = 0;
-            if(SSL_write(connection,&writeTotalBytes,sizeof(writeTotalBytes)) <= 0){
-                MOLE_ERROR(SSLSocketChan, strerror(errno));
-                return -1;
-            }
+        if (SSL_set_fd(connection, sock) <= 0) {
+            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
+            return -1;
         }
-        int needSend;
-        ssize_t hadSend;
-        while(writeCursor < writeTotalBytes){
-            needSend = writeTotalBytes - writeCursor > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (int)(writeTotalBytes - writeCursor);
-            if(read(file,buffer,needSend) <= 0){
-                MOLE_ERROR(SSLSocketChan,"file read failed");
-                return -1;
-            }
-            if((hadSend = SSL_write(connection,buffer,needSend)) <= 0){
-                if(hadSend == 0) {
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-                return -1;
-            }
-            writeCursor += hadSend;
+        if (SSL_accept(connection) <= 0) {
+            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
+            return -1;
         }
-        close(file);
-        file = -1;
-        isNew = true;
-        return 1;
-    }
-
-    int SSLSocket::SendFile(const std::string &filePath) {
-        if(isNew){
-            file = open(filePath.c_str(),O_RDONLY);
-            if(file < 0){
-                MOLE_ERROR(SSLSocketChan,strerror(errno));
-                return -1;
-            }
-            memset(&stat,0,sizeof(stat));
-            fstat(file,&stat);
-            writeTotalBytes = stat.st_size;
-            writeCursor = 0;
+        if (SSL_is_init_finished(connection) <= 0) {
+            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
+            return -1;
         }
-        int needSend;
-        ssize_t hadSend;
-        while(writeCursor < writeTotalBytes){
-            needSend = writeTotalBytes - writeCursor > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (int)(writeTotalBytes - writeCursor);
-            if(read(file,buffer,needSend) <= 0){
-                MOLE_ERROR(SSLSocketChan,"file read failed");
-                return -1;
-            }
-            if((hadSend = SSL_write(connection,buffer,needSend)) <= 0){
-                if(hadSend == 0) {
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-                return -1;
-            }
-            writeCursor += hadSend;
-        }
-        close(file);
-        file = -1;
-        isNew = true;
-        return 1;
-    }
-
-    int SSLSocket::RecvWithHeader(std::string &data,bool isAppend) {
-        if(isNew){
-            if(!isAppend) data.clear();
-            header h{};
-            if(SSL_read(connection,&h,TCP_HEADER_SIZE) <= 0){
-                return -1;
-            }
-            readTotalBytes = h.size;
-            readCursor = 0;
-            isNew = false;
-        }
-        return SSLSocket::recvImpl(data);
-    }
-
-    int SSLSocket::RecvFileWithHeader(const std::string &filePath) {
-        if(isNew){
-            size_t size;
-            if(SSL_read(connection,&size,sizeof(size)) < 0){
-                MOLE_ERROR(SSLSocketChan, strerror(errno));
-                return -1;
-            }
-            readCursor = 0;
-            readTotalBytes = size;
-            file = open(filePath.c_str(),O_CREAT | O_WRONLY,777);
-            isNew = false;
-        }
-        ssize_t hadRecv;
-        size_t needRecv;
-        while(readCursor < readTotalBytes){
-            bzero(buffer,SOCKET_BUF_SIZE);
-            needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
-            if((hadRecv = SSL_read(connection,buffer,(int)needRecv)) < 0){
-                close(file);
-                file = -1;
-                if(hadRecv == 0) {
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-            }
-            write(file,buffer,hadRecv);
-            readCursor += hadRecv;
-        }
-        isNew = true;
-        close(file);
-        file = -1;
-        return 1;
-    }
-
-    int SSLSocket::RecvFile(const std::string &filePath, size_t size) {
-        if(isNew){
-            readCursor = 0;
-            readTotalBytes = size;
-            file = open(filePath.c_str(),O_CREAT | O_WRONLY,777);
-            isNew = false;
-        }
-        ssize_t hadRecv;
-        size_t needRecv;
-        while(readCursor < readTotalBytes){
-            bzero(buffer,SOCKET_BUF_SIZE);
-            needRecv = (readTotalBytes - readCursor) > SOCKET_BUF_SIZE ? SOCKET_BUF_SIZE : (readTotalBytes - readCursor);
-            if((hadRecv = SSL_read(connection,buffer,(int)needRecv)) < 0){
-                close(file);
-                file = -1;
-                if(hadRecv == 0) {
-                    MOLE_INFO(SSLSocketChan,"ssl connection closed");
-                    return -1;
-                }
-                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-            }
-            write(file,buffer,hadRecv);
-            readCursor += hadRecv;
-        }
-        isNew = true;
-        close(file);
-        file = -1;
         return 1;
     }
 
     int SSLSocket::Close() {
-        if(connection){
-            signal(SIGPIPE,SIG_IGN);
+        if (connection) {
+            signal(SIGPIPE, SIG_IGN);
             SSL_shutdown(connection);
             SSL_free(connection);
             connection = nullptr;
         }
-        return TCPSocket::Close();
+        return TcpSocket::Close();
     }
 
-    int SSLSocket::SendAll(const std::string &data) {
-        if(isNew){
-            writeTotalBytes = data.size();
-            writeCursor = 0;
-            if(writeTotalBytes <= 1) return -1;
-            isNew = false;
+    size_t SSLSocket::Send(const char *data, size_t size) {
+        size_t needSend;
+        ssize_t hadSend;
+        size_t write_cursor = 0;
+        while(write_cursor < size){
+            needSend = size - write_cursor;
+            if((hadSend = SSL_write(connection,data + write_cursor,needSend)) <= 0){
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
+                return write_cursor;
+            }
+            write_cursor += hadSend;
         }
-        return SSLSocket::sendImpl(data.c_str());
+        return size;
     }
 
-    int SSLSocket::Send(const std::string &data, size_t size) {
-        return SSLSocket::Send(data.c_str(), size);
-    }
-
-    int SSLSocket::Send(std::string &&data, size_t size) {
-        return SSLSocket::Send(data.c_str(), size);
-    }
-
-    int SSLSocket::Send(const char *data, size_t size) {
-        if(isNew){
-            writeTotalBytes = size;
-            writeCursor = 0;
-            if(writeTotalBytes <= 1) return -1;
-            isNew = false;
-        }
-        return SSLSocket::sendImpl(data);
-    }
-
-    int SSLSocket::Recv(std::string &data, size_t size,bool isAppend) {
-        if(isNew){
-            if(!isAppend) data.clear();
-            readTotalBytes = size;
-            readCursor = 0;
-            isNew = false;
-        }
-        return SSLSocket::recvImpl(data);
-    }
-
-    bool SSLSocket::RecvAll(std::string &data,bool isAppend) {
-        if(isNew){
-            if(!isAppend) data.clear();
-            readTotalBytes = SIZE_MAX;
-            readCursor = 0;
-            isNew = false;
-        }
-        return SSLSocket::recvImpl(data) == 0;
-    }
-
-    int SSLSocket::InitSSL() {
-        connection = SSL_new(GetContext().context);
-        if(!connection){
-            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+    bool SSLSocket::SendFile(const std::string &file_path) {
+        auto file = open(file_path.c_str(),O_RDONLY);
+        struct stat stat{};
+        if(file < 0){
+            MOLE_ERROR(SSLSocketChan,strerror(errno));
             return -1;
         }
-        if(SSL_set_fd(connection,sock) <= 0){
-            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
-            return -1;
+        fstat(file,&stat);
+        size_t write_cursor = 0;
+        ssize_t hadSend,hadRead;
+        char buffer[4096] = {0};
+        while(write_cursor < stat.st_size){
+            bzero(buffer,sizeof(buffer));
+            hadRead = read(file,buffer,sizeof(buffer));
+            if(hadRead < 0) {
+                close(file);
+                return false;
+            }
+            if((hadSend = SSL_write(connection,buffer,hadRead)) < 0){
+                if(errno == EAGAIN || errno == EWOULDBLOCK){
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
+                }
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
+                close(file);
+                return false;
+            }
+            write_cursor += hadSend;
         }
-        if(SSL_accept(connection) <= 0){
-            MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
-            return -1;
+        close(file);
+        return true;
+    }
+
+    size_t SSLSocket::Recv(std::string &data, size_t size) {
+        if(cache.size() >= size) {
+            data = cache.substr(0,size);
+            cache = cache.substr(size);
+            return size;
+        }else{
+            data = std::move(cache);
+            size -= cache.size();
+            cache.clear();
         }
-        if (SSL_is_init_finished(connection) <= 0) {
-            MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(),buffer));
-            return -1;
+        ssize_t hadRecv;
+        size_t needRecv;
+        size_t read_cursor = 0;
+        char buffer[4096] = {0};
+        while(read_cursor < size){
+            bzero(buffer,4096);
+            needRecv = size - read_cursor;
+            if((hadRecv = SSL_read(connection,buffer,needRecv)) <= 0){
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
+                return read_cursor;
+            }
+            data.append(buffer,hadRecv);
+            read_cursor += hadRecv;
         }
-        return 1;
+        return size;
+    }
+
+    size_t SSLSocket::RecvUntil(std::string &data, const char *key) {
+        if(strlen(key) == 0) return 0;
+        ssize_t hadRecv;
+        size_t read_cursor = 0;
+        size_t pos;
+        char buffer[4096] = {0};
+        while(true){
+            bzero(buffer,4096);
+            if((hadRecv = SSL_read(connection,buffer,4096)) <= 0){
+                MOLE_ERROR(SSLSocketChan, strerror(errno));
+                return 0;
+            }
+            cache.append(buffer,hadRecv);
+            if((pos = cache.find(key)) != std::string::npos) {
+                data = cache.substr(0,pos + strlen(key));
+                return pos + strlen(key);
+            }
+            read_cursor += hadRecv;
+        }
     }
 
     bool SSLSocket::Connect(const std::string &ip, unsigned short port) {
 
-        if(!TCPSocket::Connect(ip,port)) return false;
+        if (!TcpClient::Connect(ip, port)) return false;
 
-        if(!connection){
+        char buffer[4096] = {0};
+        if (!connection) {
             connection = SSL_new(GetClientContext().context);
-            if(!connection){
-                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            if (!connection) {
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
                 return false;
             }
-            if(SSL_set_fd(connection,sock) <= 0){
-                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            if (SSL_set_fd(connection, sock) <= 0) {
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
                 return false;
             }
-            if(SSL_connect(connection) <= 0){
-                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            if (SSL_connect(connection) <= 0) {
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
                 return false;
             }
-            if(SSL_is_init_finished(connection) <= 0){
-                MOLE_ERROR(SSLSocketChan,ERR_error_string(ERR_get_error(),buffer));
+            if (SSL_is_init_finished(connection) <= 0) {
+                MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
                 return false;
             }
         }

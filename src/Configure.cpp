@@ -1,4 +1,4 @@
-#include "core/Configure.h"
+#include "utils/Configure.h"
 
 namespace totoro {
 

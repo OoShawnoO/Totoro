@@ -1,191 +1,137 @@
 #include <sys/epoll.h>
 #include <fcntl.h>
+#include <cstring>
 #include "core/Connection.h"
 
 const std::string ConnectionChan = "Totoro";
 namespace totoro {
     /* Init Impl */
-    int Connection::Init(const ConnectionInitParameter& connectionInitParameter) {
-        filter = connectionInitParameter.filter;
-        epollId = connectionInitParameter.epollId;
-        oneShot = connectionInitParameter.oneShot;
-        edgeTrigger = connectionInitParameter.edgeTrigger;
-        forwardCandidateMap = connectionInitParameter.forwardCandidateMap;
-        Socket::Init(connectionInitParameter.sock,connectionInitParameter.myAddr,
-                     connectionInitParameter.destAddr);
+    int Connection::Init(const ConnectionInitParameter &connectionInitParameter) {
+        epoll_id = connectionInitParameter.epoll_id;
+        oneshot = connectionInitParameter.oneshot;
+        edge_trigger = connectionInitParameter.edge_trigger;
+        TcpSocket::Init(
+                connectionInitParameter.sock,
+                *connectionInitParameter.local_address,
+                *connectionInitParameter.destination_address
+        );
         return 0;
     }
+
     /* About Epoll Impl */
-    int Connection::EpollAdd(SocketID _sock) const {
+    int Connection::EpollAdd(SOCKET _sock) const {
         epoll_event ev{};
         ev.data.fd = _sock;
         ev.events = EPOLLIN | EPOLLRDHUP;
-        ev.events = (edgeTrigger ? ev.events | EPOLLET : ev.events);
-        ev.events = (oneShot ? ev.events | EPOLLONESHOT : ev.events);
-        int option = fcntl(_sock,F_GETFL);
+        ev.events = (edge_trigger ? ev.events | EPOLLET : ev.events);
+        ev.events = (oneshot ? ev.events | EPOLLONESHOT : ev.events);
+        int option = fcntl(_sock, F_GETFL);
         int newOption = option | O_NONBLOCK;
-        fcntl(_sock,F_SETFL,newOption);
-        return epoll_ctl(epollId,EPOLL_CTL_ADD,_sock,&ev);
+        fcntl(_sock, F_SETFL, newOption);
+        return epoll_ctl(epoll_id, EPOLL_CTL_ADD, _sock, &ev);
     }
 
-    int Connection::EpollMod(SocketID _sock,uint32_t ev) const {
+    int Connection::EpollMod(SOCKET _sock, uint32_t ev) const {
         epoll_event event{};
         event.data.fd = _sock;
         event.events = ev | EPOLLRDHUP;
-        event.events = edgeTrigger ? event.events | EPOLLET : event.events;
-        event.events = oneShot ? event.events | EPOLLONESHOT : event.events;
-        return epoll_ctl(epollId,EPOLL_CTL_MOD,_sock,&event);
+        event.events = edge_trigger ? event.events | EPOLLET : event.events;
+        event.events = oneshot ? event.events | EPOLLONESHOT : event.events;
+        return epoll_ctl(epoll_id, EPOLL_CTL_MOD, _sock, &event);
     }
 
-    int Connection::EpollDel(SocketID _sock) const {
-        return epoll_ctl(epollId,EPOLL_CTL_DEL,_sock,nullptr);
+    int Connection::EpollDel(SOCKET _sock) const {
+        return epoll_ctl(epoll_id, EPOLL_CTL_DEL, _sock, nullptr);
     }
+
     /* Public Impl */
     Connection::~Connection() {
         Connection::Close();
     }
 
-    void Connection::RegisterNextEvent(SocketID _sock,Connection::Status nextStatus,bool isMod = false) {
+    void Connection::RegisterNextEvent(SOCKET _sock, Connection::Status nextStatus, bool isMod = false) {
         status = nextStatus;
-        if(!isMod) return;
-        switch(status){
+        if (!isMod) return;
+        switch (status) {
             case Read : {
-                if(EpollMod(_sock,EPOLLIN) < 0){ MOLE_ERROR(ConnectionChan, strerror(errno)); }
+                if (EpollMod(_sock, EPOLLIN) < 0) { MOLE_ERROR(ConnectionChan, strerror(errno)); }
                 break;
             }
             case Write : {
-                if(EpollMod(_sock,EPOLLOUT) < 0){ MOLE_ERROR(ConnectionChan, strerror(errno)); }
+                if (EpollMod(_sock, EPOLLOUT) < 0) { MOLE_ERROR(ConnectionChan, strerror(errno)); }
                 break;
             }
-            default:{}
+            default: {
+            }
         }
     }
 
+    void Connection::Handler() {
+        std::string data;
+        RecvUntil(data,"\r\n\r\n");
+        MOLE_INFO(ConnectionChan,data);
+//        Submit(
+//                "HTTP/1.1 200\n"
+//                "Server: Totoro\n"
+//                "Date: Thu, 22 Nov 2018 05:41:01 GMT\n"
+//                "Content-Type: application/json;charset=UTF-8\n"
+//                "Connection: keep-alive\n"
+//                "Content-Length: 139\r\n"
+//                "\r\n"
+//                "{\"code\":0,\"data\":{\"requestId\":\"0000400004391542865263601\",\"ts\":1542865261748,\"groups\":[{\"impId\":0,\"ads\":[]}],\"emptyStatusCode\":1501010301}}"
+//        );
+
+//        Submit(
+//                "HTTP/1.1 200\n"
+//                "Server: Totoro\n"
+//                "Date: Thu, 22 Nov 2018 05:41:01 GMT\n"
+//                "Content-Type: text/plain;charset=UTF-8\n"
+//                "Connection: keep-alive\n"
+//                "Content-Length: 429\r\n"
+//                "\r\n"
+//        );
+//        SubmitFile("main.cpp");
+    }
+
     void Connection::Run() {
-        if(lastStatus != None) {
-            status = lastStatus;
-            lastStatus = None;
-        }
-        while(status != None){
-            CallbackReturnType ret;
+        while(status != None) {
             switch (status) {
-                case Read : {
-                    ret = ReadCallback();
-                    switch(ret){
-                        case SUCCESS : status = AfterRead; break;
-                        case AGAIN : {
-                            lastStatus = status;
-                            RegisterNextEvent(workSock,Read,true);
-                            status = None;
-                            break;
-                        }
-                        case FAILED : {
-                            MOLE_ERROR(ConnectionChan,"ReadCallback failed");
-                            status = Error;
-                            break;
-                        }
-                        case SHUTDOWN : {
-                            ShutDown();
-                            status = None;
-                            break;
-                        }
-                        case INTERRUPT : {
-                            status = None;
-                            break;
-                        }
-                    }
-                    break;
-                }
-                case AfterRead : {
-                    ret = AfterReadCallback();
-                    switch(ret){
-                        case SUCCESS : status = Write; break;
-                        case AGAIN : {
-                            lastStatus = status;
-                            RegisterNextEvent(workSock, Read, true);
-                            status = None;
-                            break;
-                        }
-                        case FAILED : {
-                            MOLE_ERROR(ConnectionChan,"AfterReadCallback failed");
-                            status = Error;
-                            break;
-                        }
-                        case SHUTDOWN : {
-                            ShutDown();
-                            status = None;
-                            break;
-                        }
-                        case INTERRUPT : {
-                            status = None;
-                            break;
-                        }
-                    }
-                    break;
-                }
+                case Read : Handler();
                 case Write : {
-                    ret = WriteCallback();
-                    switch(ret){
-                        case SUCCESS : status = AfterWrite; break;
-                        case AGAIN : {
-                            lastStatus = status;
-                            RegisterNextEvent(workSock, Write, true);
-                            status = None;
-                            break;
-                        }
-                        case FAILED : {
-                            MOLE_ERROR(ConnectionChan,"WriteCallback failed");
-                            status = Error;
-                            break;
-                        }
-                        case SHUTDOWN : {
-                            ShutDown();
-                            status = None;
-                            break;
-                        }
-                        case INTERRUPT : {
-                            status = None;
-                            break;
+                    bool shutdown_flag = false;
+                    if(status == Shutdown) { shutdown_flag = true; }
+                    while(!send_queue.empty()) {
+                        auto& item = send_queue.front();
+                        if(item.second) {
+                            if(!SendFile(item.first)) {
+                                RegisterNextEvent(sock,Write,true);
+                                break;
+                            }else{
+                                send_queue.pop_front();
+                            }
+                        }else{
+                            size_t had_send;
+                            if(item.first.size() != (had_send = SendAll(item.first))) {
+                                item.first = item.first.substr(had_send);
+                                RegisterNextEvent(sock,Write,true);
+                                break;
+                            }else{
+                                send_queue.pop_front();
+                            }
                         }
                     }
+
+                    if(send_queue.empty()) RegisterNextEvent(sock,Read,true);
+                    status = None;
+                    if(shutdown_flag) { status = Shutdown; continue; }
+                }
+                case None : {
                     break;
                 }
-                case AfterWrite : {
-                    ret = AfterWriteCallback();
-                    switch(ret) {
-                        case SUCCESS : {
-                            RegisterNextEvent(sock,Read,true);
-                            status = None;
-                            break;
-                        }
-                        case AGAIN : {
-                            lastStatus = status;
-                            RegisterNextEvent(workSock, Write, true);
-                            status = None;
-                            break;
-                        }
-                        case FAILED : {
-                            MOLE_ERROR(ConnectionChan,"WriteCallback failed");
-                            status = Error;
-                            break;
-                        }
-                        case SHUTDOWN : {
-                            ShutDown();
-                            status = None;
-                            break;
-                        }
-                        case INTERRUPT : {
-                            status = None;
-                            break;
-                        }
-                    }
-                    break;
-                }
-                case Error :
+                case Shutdown : {
                     ShutDown();
                     status = None;
-                case None : {
-                    return;
+                    break;
                 }
             }
         }
@@ -193,54 +139,26 @@ namespace totoro {
 
     int Connection::Close() {
         status = None;
-        filter = nullptr;
-        forwardCandidateMap = nullptr;
-        lastStatus = None;
-        epollId = BAD_FILE_DESCRIPTOR;
-        workSock = BAD_FILE_DESCRIPTOR;
-        return TCPSocket::Close();
-    }
-
-    void Connection::SetWorkSock(SocketID _sock) {
-        workSock = _sock;
-    }
-
-    Connection::CallbackReturnType Connection::ReadCallback() {
-        return SUCCESS;
-    }
-
-    Connection::CallbackReturnType Connection::AfterReadCallback() {
-        return SUCCESS;
-    }
-
-    Connection::CallbackReturnType Connection::WriteCallback() {
-        return SUCCESS;
-    }
-
-    Connection::CallbackReturnType Connection::AfterWriteCallback() {
-        return SUCCESS;
+        epoll_id = BAD_SOCKET;
+        return TcpSocket::Close();
     }
 
     int Connection::ShutDown() {
-        shutdown(sock,SHUT_RDWR);
-        RegisterNextEvent(sock,Read,true);
+        shutdown(sock, SHUT_RDWR);
+        RegisterNextEvent(sock, Read, true);
         return 1;
     }
 
-    bool Connection::BanAddr(const std::string& banIp) {
-        if(!filter) return false;
-        in_addr_t addr = inet_addr(banIp.c_str());
-        return filter->AddBan(addr);
+    void Connection::Submit(std::string &&data) {
+        if(!send_queue.empty() && !send_queue.back().second) {
+            send_queue.back().first.append(data);
+        }
+        send_queue.emplace_back(std::move(data),false);
     }
 
-    bool Connection::AllowAddr(const std::string& allowIp) {
-        if(!filter) return false;
-        in_addr_t addr = inet_addr(allowIp.c_str());
-        return filter->AddAllow(addr);
+    void Connection::SubmitFile(const std::string& file_name) {
+        send_queue.emplace_back(file_name,true);
     }
 
-    void Connection::ClearData() {
-        data.clear();
-    }
 }
 

@@ -1,4 +1,4 @@
-#include "core/HttpsBase.h"
+#include "http/HttpsBase.h"
 
 const std::string HttpsBaseChan = "Totoro";
 namespace totoro {
@@ -10,22 +10,11 @@ namespace totoro {
         return Connection::Init(connectionInitParameter);
     }
 
-    Connection::CallbackReturnType HttpsBase::ReadCallback() {
-        if(!connection) {
-            if(InitSSL() < 0) return FAILED;
+    void HttpsBase::Handler() {
+        if (!connection) {
+            if (InitSSL() < 0) return;
         }
-        return HttpBase::ReadCallback();
+        HttpBase::Handler();
     }
 
-    Connection::CallbackReturnType HttpsBase::AfterReadCallback() {
-        return HttpBase::AfterReadCallback();
-    }
-
-    Connection::CallbackReturnType HttpsBase::WriteCallback() {
-        return HttpBase::WriteCallback();
-    }
-
-    Connection::CallbackReturnType HttpsBase::AfterWriteCallback() {
-        return HttpBase::AfterWriteCallback();
-    }
 } // totoro

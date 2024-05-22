@@ -4,8 +4,8 @@
 #include <cstring>
 #include <climits>
 #include <csignal>
+
 #include "Epoller.h"
-#include "IPFilter.h"
 
 static const std::string AcceptorChan = "Totoro";
 namespace totoro {
@@ -16,80 +16,99 @@ namespace totoro {
     template<typename E>
     class Acceptor {
     protected:
-        bool& isStop                        ;
-        std::string ip                      ;
-        short port                          ;
-        IPFilter filter                     {};
-        TCPSocket listenSocket              {};
-        std::deque<E> reactors              {};
+        bool stop{false};
+        std::string ip{};
+        unsigned short port{};
+        TcpListener listen_socket;
+        std::deque<E> reactors{};
+
         /* 轮询式reactor处理新连接 / Use round-robin algorithm to process new connection */
-        E& RoundRobin(){
+        E &RoundRobin() {
             static int index = 0;
             return reactors[++index % reactors.size()];
         }
+
         /* 使用当前最小连接数reactor处理新连接 / Use current least connection count reactor to process new connection */
-        E& Minimum(){
+        E &Minimum() {
             int minCount = INT_MAX;
-            E* cur = nullptr;
-            for(auto& reactor : reactors){
-                if(reactor.CurrentConnectionCount() < minCount)
+            E *cur = nullptr;
+            for (auto &reactor: reactors) {
+                if (reactor.CurrentConnectionCount() < minCount)
                     cur = &reactor;
             }
             return *cur;
         }
+
     public:
-        Acceptor(bool& _isStop,const Json& config)
-                 :isStop(_isStop){
-            ip = config["ip"];
-            port =config["port"];
-            int epollTimeout = config["epoll-timeout"];
-            int reactorNum = config["reactor-count"];
-            bool edgeTrigger = config["edge-trigger"];
-            bool oneShot = config["one-shot"];
-            bool noneBlock = config["none-block"];
-            auto allow = config["allow-ip"];
-            auto deny = config["deny-ip"];
+        Acceptor(
+                std::string ip_,
+                unsigned short port_,
+                int epoll_timeout = -1,
+                int reactor_count = 1,
+                bool edge_trigger = false,
+                bool oneshot = true,
+                bool none_block = true
+        ) : listen_socket(ip_, port_) {
+            ip = std::move(ip_);
+            port = port_;
 
-            if(reactorNum <= 0) {
-                MOLE_FATAL("Epoller","reactor count must > 0");
+            if (reactor_count <= 0) {
+                MOLE_FATAL("Epoller", "reactor count must > 0");
                 exit(-1);
             }
-            for(int i=0;i<reactorNum;i++){
-                reactors.emplace_back(_isStop,&filter,edgeTrigger,oneShot,noneBlock);
+            for (int i = 0; i < reactor_count; i++) {
+                reactors.emplace_back(stop, edge_trigger, oneshot, none_block);
             }
-            if(!listenSocket.Init(ip,port)){
-                MOLE_ERROR("Epoller","init listen socket failed");
+
+            if (!listen_socket.Bind()) {
+                MOLE_ERROR("Epoller", "bind listen socket failed");
                 exit(-1);
             }
-            if(!listenSocket.Bind()){
-                MOLE_ERROR("Epoller","bind listen socket failed");
-                exit(-1);
-            }
-            if(!listenSocket.Listen()){
-                MOLE_ERROR("Epoller","listen socket failed");
+            if (!listen_socket.Listen()) {
+                MOLE_ERROR("Epoller", "listen socket failed");
                 exit(-1);
             }
 
-            for(const auto& bannedIP : deny) filter.AddBan(inet_addr(std::string(bannedIP).c_str()));
-            for(const auto& allowedIP : allow) filter.AddAllow(inet_addr(std::string(allowedIP).c_str()));
-            for(auto& reactor : reactors) {
-                std::thread(E::Poll,&reactor,epollTimeout).detach();
+            for (auto &reactor: reactors) {
+                std::thread(E::Poll, &reactor, epoll_timeout).detach();
             }
         }
 
-        void Run(){
-            TCPSocket tcpSocket;
-            while(!isStop){
-                if(!listenSocket.Accept(tcpSocket)){
-                    MOLE_ERROR(AcceptorChan,strerror(errno));
-                    exit(-1);
-                }
+        explicit Acceptor(const Json &config)
+                : listen_socket(config["ip"], config["port"]) {
+            ip = config["ip"];
+            port = config["port"];
+            int epoll_timeout = config["epoll-timeout"];
+            int reactor_count = config["reactor-count"];
+            bool edge_trigger = config["edge-trigger"];
+            bool oneshot = config["one-shot"];
+            bool none_block = config["none-block"];
 
-                if(filter.isBanned(tcpSocket.DestAddr().sin_addr.s_addr)
-                || !filter.isAllowed(tcpSocket.DestAddr().sin_addr.s_addr)){
-                    MOLE_INFO(AcceptorChan,"connection not allowed.");
-                    tcpSocket.Close();
-                    continue;
+            if (reactor_count <= 0) {
+                MOLE_FATAL("Epoller", "reactor count must > 0");
+                exit(-1);
+            }
+            for (int i = 0; i < reactor_count; i++) {
+                reactors.emplace_back(stop, edge_trigger, oneshot, none_block);
+            }
+
+            if (!listen_socket.Bind()) { exit(-1); }
+            if (!listen_socket.Listen()) { exit(-1); }
+
+            for (auto &reactor: reactors) {
+                std::thread(E::Poll, &reactor, epoll_timeout).detach();
+            }
+        }
+
+        ~Acceptor() {
+            stop = true;
+        }
+
+        void Run() {
+            TcpSocket tcpSocket;
+            while (!stop) {
+                if (!listen_socket.Accept(tcpSocket)) {
+                    exit(-1);
                 }
 
                 Minimum().AddConnection(tcpSocket);

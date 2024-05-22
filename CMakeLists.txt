@@ -4,8 +4,7 @@ project(${TARGET})
 
 set(CMAKE_CXX_STANDARD 11)
 
-aux_source_directory(src SRC)
-aux_source_directory(include INCLUDE)
+#aux_source_directory(src SRC)
 include_directories(include)
 include_directories(3rdparty)
 link_directories(lib)
@@ -18,6 +17,14 @@ if(NOT ${TRAGET} fmt)
 include(3rdparty/fmt.cmake)
 endif()
 
-add_executable(${TARGET} main.cpp ${SRC} ${INCLUDE} test/Test.h)
+add_executable(${TARGET} main.cpp
+        src/Socket.cpp
+        src/Connection.cpp
+        src/HttpBase.cpp
+        src/HttpsBase.cpp
+        src/HttpServer.cpp
+        src/SSLSocket.cpp
+        src/Configure.cpp
+)
 
 target_link_libraries(${TARGET} pthread fmt::fmt ssl crypto Mole)

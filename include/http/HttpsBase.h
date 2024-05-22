@@ -2,21 +2,18 @@
 #define TOTORO_HTTPSBASE_H
 
 #include "HttpBase.h"           /* HttpBase */
-#include "core/SSLSocket.h"     /* SSLSocket */
+#include "utils/SSLSocket.h"     /* SSLSocket */
 
 namespace totoro {
     /**
      * @brief @brief 负责HTTPS连接相关事务 / Response HTTPS connection transactions
      */
-    class HttpsBase : public virtual HttpBase,public SSLSocket{
+    class HttpsBase : public virtual HttpBase, public virtual SSLSocket {
     public:
         int Init(const ConnectionInitParameter &connectionInitParameter) override;
 
     protected:
-        CallbackReturnType ReadCallback() override;
-        CallbackReturnType AfterReadCallback() override;
-        CallbackReturnType WriteCallback() override;
-        CallbackReturnType AfterWriteCallback() override;
+        void Handler();
 
     public:
         int Close() override;

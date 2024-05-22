@@ -4,15 +4,16 @@
 #include <cstring>
 #include <fcntl.h>
 #include "Mole/Mole.h"
-#include "core/Socket.h"
+#include "utils/Socket.h"
 #include "core/Connection.h"
 #include "core/Acceptor.h"
 #include "core/Epoller.h"
-#include "core/HttpBase.h"
-#include "core/HttpsBase.h"
-#include "HttpClient.h"
+#include "http/HttpBase.h"
+#include "http/HttpsBase.h"
+#include "http/HttpClient.h"
+#include "core/Server.h"
 
-#define ASSERT(data,right) do{      \
+#define ASSERT(data, right) do{      \
     if(data == right){              \
         MOLE_INFO("TEST","PASS");    \
     }else{                          \
@@ -33,182 +34,201 @@
 
 using namespace totoro;
 
-enum TestType{
-    None,Header,File
+enum TestType {
+    None, Header, File
 };
 
-void TcpSendThread(std::string data,TestType type){
+void TcpSendThread(std::string data, TestType type) {
     TCPSocket tcpSocket;
-    tcpSocket.Init(SENDER_IP,SENDER_PORT);
+    tcpSocket.Init(SENDER_IP, SENDER_PORT);
     tcpSocket.Bind();
     tcpSocket.Listen();
 
     TCPSocket clientSocket;
-    if(!tcpSocket.Accept(clientSocket)){
-        MOLE_ERROR("Accept",strerror(errno));
+    if (!tcpSocket.Accept(clientSocket)) {
+        MOLE_ERROR("Accept", strerror(errno));
         return;
     }
-    switch(type){
-        case None : { clientSocket.Send(data,data.size()); break;}
-        case Header : { clientSocket.SendWithHeader(data.c_str(),data.size()); break;}
-        case File : { clientSocket.SendFileWithHeader("test/test.png"); break; }
+    switch (type) {
+        case None : {
+            clientSocket.Send(data, data.size());
+            break;
+        }
+        case Header : {
+            clientSocket.SendWithHeader(data.c_str(), data.size());
+            break;
+        }
+        case File : {
+            clientSocket.SendFileWithHeader("test/test.png");
+            break;
+        }
     }
 
     tcpSocket.Close();
     clientSocket.Close();
 }
 
-void UdpSendThread(std::string data,TestType type){
+void UdpSendThread(std::string data, TestType type) {
     UDPSocket udpSocket;
-    udpSocket.Init(SENDER_IP,SENDER_PORT);
+    udpSocket.Init(SENDER_IP, SENDER_PORT);
     udpSocket.Bind();
-    udpSocket.SetDestAddr(RECVER_IP,RECVER_PORT);
-    switch(type){
-        case None : { udpSocket.Send(data,data.size()); break;}
-        case Header : { udpSocket.SendWithHeader(data.c_str(),data.size()); break;}
-        case File : { udpSocket.SendFileWithHeader("test/test.png"); break; }
+    udpSocket.SetDestAddr(RECVER_IP, RECVER_PORT);
+    switch (type) {
+        case None : {
+            udpSocket.Send(data, data.size());
+            break;
+        }
+        case Header : {
+            udpSocket.SendWithHeader(data.c_str(), data.size());
+            break;
+        }
+        case File : {
+            udpSocket.SendFileWithHeader("test/test.png");
+            break;
+        }
     }
     udpSocket.Close();
 }
 
 
-void TEST_TcpSendRecvString(){
-    std::thread t(TcpSendThread,"12345678910",None);
+void TEST_TcpSendRecvString() {
+    std::thread t(TcpSendThread, "12345678910", None);
     usleep(1000);
     TCPSocket tcpSocket;
     std::string s;
     tcpSocket.Init();
-    tcpSocket.Connect(SENDER_IP,SENDER_PORT);
-    tcpSocket.Recv(s,11);
-    ASSERT(s,"12345678910");
+    tcpSocket.Connect(SENDER_IP, SENDER_PORT);
+    tcpSocket.Recv(s, 11);
+    ASSERT(s, "12345678910");
     t.join();
     tcpSocket.Close();
 }
 
-void TEST_TcpSendRecvBytes(){
-    char buffer[11] = {'a','\0','b','\0','c','\0','d','\0','e','\0','f'};
-    std::thread t(TcpSendThread,std::string(buffer,11),Header);
+void TEST_TcpSendRecvBytes() {
+    char buffer[11] = {'a', '\0', 'b', '\0', 'c', '\0', 'd', '\0', 'e', '\0', 'f'};
+    std::thread t(TcpSendThread, std::string(buffer, 11), Header);
     usleep(1000);
     TCPSocket tcpSocket;
     std::string s;
     tcpSocket.Init();
-    tcpSocket.Connect(SENDER_IP,SENDER_PORT);
+    tcpSocket.Connect(SENDER_IP, SENDER_PORT);
     tcpSocket.RecvWithHeader(s);
-    ASSERT(s,std::string(buffer,11));
+    ASSERT(s, std::string(buffer, 11));
     t.join();
     tcpSocket.Close();
 }
 
-void TEST_TcpSendRecvFile(){
-    std::thread t(TcpSendThread,"",File);
+void TEST_TcpSendRecvFile() {
+    std::thread t(TcpSendThread, "", File);
     TCPSocket tcpSocket;
     usleep(1000);
     std::string s;
     tcpSocket.Init();
-    tcpSocket.Connect(SENDER_IP,SENDER_PORT);
+    tcpSocket.Connect(SENDER_IP, SENDER_PORT);
     tcpSocket.RecvFileWithHeader("test/test-tcp.png");
-    struct stat s1{},s2{};
-    int f1 = open("test/test.png",O_RDONLY);
-    int f2 = open("test/test-tcp.png",O_RDONLY);
-    fstat(f1,&s1);
-    fstat(f2,&s2);
-    ASSERT(s1.st_size,s2.st_size);
+    struct stat s1{}, s2{};
+    int f1 = open("test/test.png", O_RDONLY);
+    int f2 = open("test/test-tcp.png", O_RDONLY);
+    fstat(f1, &s1);
+    fstat(f2, &s2);
+    ASSERT(s1.st_size, s2.st_size);
     t.join();
-    close(f1);close(f2);
+    close(f1);
+    close(f2);
     tcpSocket.Close();
 }
 
-void TEST_UdpSendRecvString(){
+void TEST_UdpSendRecvString() {
     UDPSocket udpSocket;
-    udpSocket.Init(RECVER_IP,RECVER_PORT);
+    udpSocket.Init(RECVER_IP, RECVER_PORT);
     udpSocket.Bind();
     std::string s;
-    std::thread t(UdpSendThread,"12345678910",None);
-    udpSocket.Recv(s,11);
-    ASSERT(s,"12345678910");
+    std::thread t(UdpSendThread, "12345678910", None);
+    udpSocket.Recv(s, 11);
+    ASSERT(s, "12345678910");
     t.join();
 }
 
-void TEST_UdpSendRecvBytes(){
+void TEST_UdpSendRecvBytes() {
     UDPSocket udpSocket;
-    udpSocket.Init(RECVER_IP,RECVER_PORT);
+    udpSocket.Init(RECVER_IP, RECVER_PORT);
     udpSocket.Bind();
     std::string s;
-    char buffer[11] = {'a','\0','b','\0','c','\0','d','\0','e','\0','f'};
-    std::thread t(UdpSendThread,std::string(buffer,11),Header);
+    char buffer[11] = {'a', '\0', 'b', '\0', 'c', '\0', 'd', '\0', 'e', '\0', 'f'};
+    std::thread t(UdpSendThread, std::string(buffer, 11), Header);
     udpSocket.RecvWithHeader(s);
-    ASSERT(s,std::string(buffer,11));
+    ASSERT(s, std::string(buffer, 11));
     t.join();
 }
 
-void TEST_UdpSendRecvFile(){
+void TEST_UdpSendRecvFile() {
     UDPSocket udpSocket;
     std::string s;
-    std::thread t(UdpSendThread,"",File);
-    udpSocket.Init(RECVER_IP,RECVER_PORT);
+    std::thread t(UdpSendThread, "", File);
+    udpSocket.Init(RECVER_IP, RECVER_PORT);
     udpSocket.Bind();
     udpSocket.RecvFileWithHeader("test/test-udp.png");
-    struct stat s1{},s2{};
-    int f1 = open("test/test.png",O_RDONLY);
-    int f2 = open("test/test-udp.png",O_RDONLY);
-    fstat(f1,&s1);
-    fstat(f2,&s2);
-    ASSERT(s1.st_size,s2.st_size);
+    struct stat s1{}, s2{};
+    int f1 = open("test/test.png", O_RDONLY);
+    int f2 = open("test/test-udp.png", O_RDONLY);
+    fstat(f1, &s1);
+    fstat(f2, &s2);
+    ASSERT(s1.st_size, s2.st_size);
     t.join();
-    close(f1);close(f2);
+    close(f1);
+    close(f2);
 }
 
-void TEST_HttpClient_HttpGet_Timeout(){
+void TEST_HttpClient_HttpGet_Timeout() {
     HttpRequestParameters params;
     params.timeout = 500;
     params.url = TEST_UNABLE_URL_WITHOUT_HTTP_PROXY;
     HttpClient client;
-    ASSERT(client.Get(params),false);
+    ASSERT(client.Get(params), false);
 }
 
-void TEST_HttpClient_HttpsGet_Timeout(){
+void TEST_HttpClient_HttpsGet_Timeout() {
     HttpRequestParameters params;
     params.timeout = 500;
     params.url = TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY;
     HttpClient client;
-    ASSERT(client.Get(params),false);
+    ASSERT(client.Get(params), false);
 }
 
-void TEST_HttpClient_HttpGet_Proxy(){
+void TEST_HttpClient_HttpGet_Proxy() {
     HttpRequestParameters params;
-    params.proxies = {{"http",{PROXY_IP,PROXY_PORT}}};
+    params.proxies = {{"http", {PROXY_IP, PROXY_PORT}}};
     params.url = TEST_HTTP_URL;
     HttpClient client;
-    ASSERT(client.Get(params),true);
+    ASSERT(client.Get(params), true);
 }
 
-void TEST_HttpClient_HttpsGet_Proxy(){
+void TEST_HttpClient_HttpsGet_Proxy() {
     HttpRequestParameters params;
-    params.proxies = {{"https",{PROXY_IP,PROXY_PORT}}};
+    params.proxies = {{"https", {PROXY_IP, PROXY_PORT}}};
     params.url = TEST_UNABLE_URL_WITHOUT_HTTPS_PROXY;
     HttpClient client;
-    ASSERT(client.Get(params),true);
+    ASSERT(client.Get(params), true);
 }
 
-void TEST_HttpClient_HttpGet(){
+void TEST_HttpClient_HttpGet() {
     HttpRequestParameters params;
     params.url = TEST_HTTP_URL;
     HttpClient client;
-    ASSERT(client.Get(params),true);
+    ASSERT(client.Get(params), true);
 }
 
-void TEST_HttpClient_HttpsGet(){
+void TEST_HttpClient_HttpsGet() {
     HttpRequestParameters params;
     params.url = TEST_HTTPS_URL;
     HttpClient client;
-    ASSERT(client.Get(params),true);
+    ASSERT(client.Get(params), true);
 }
 
-void TEST_Acceptor(){
-    bool isStop{false};
-    const auto& conf = Configure::config.conf["server"]["x-server"];
-    Acceptor<Epoller<HttpBase>> acceptor(isStop,conf);
-    acceptor.Run();
+void TEST_Acceptor() {
+    const auto &conf = Configure::config.conf["server"]["x-server"];
+    Server<HttpBase> server(conf);
+    server.Run();
 }
 
 void TEST_ALL() {
