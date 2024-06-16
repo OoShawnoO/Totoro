@@ -70,24 +70,25 @@ namespace totoro {
     }
 
     size_t TcpSocket::Recv(std::string &data, size_t size) {
+        ssize_t hadRecv;
+        size_t needRecv;
+        size_t read_cursor = 0;
         if(cache.size() >= size) {
             data = cache.substr(0,size);
             cache = cache.substr(size);
             return size;
         }else{
+            read_cursor += cache.size();
             data = std::move(cache);
-            size -= cache.size();
             cache.clear();
         }
-        ssize_t hadRecv;
-        size_t needRecv;
-        size_t read_cursor = 0;
         char buffer[4096] = {0};
         while(read_cursor < size){
             bzero(buffer,4096);
             needRecv = size - read_cursor;
-            if((hadRecv = ::recv(sock,buffer,needRecv,MSG_DONTWAIT)) <= 0){
-                MOLE_ERROR(SocketChan, strerror(errno));
+            needRecv = needRecv > 4096 ? 4096 : needRecv;
+            if((hadRecv = ::recv(sock,buffer,needRecv,0)) <= 0){
+                MOLE_TRACE(SocketChan, strerror(errno));
                 return read_cursor;
             }
             data.append(buffer,hadRecv);
@@ -109,7 +110,7 @@ namespace totoro {
         char buffer[4096] = {0};
         while(true){
             bzero(buffer,4096);
-            if((hadRecv = ::recv(sock,buffer,4096,MSG_DONTWAIT)) <= 0){
+            if((hadRecv = ::recv(sock,buffer,4096,0)) <= 0){
                 MOLE_ERROR(SocketChan, strerror(errno));
                 return 0;
             }
@@ -183,6 +184,6 @@ namespace totoro {
         destination_address.sin_port = htons(port);
         destination_address.sin_family = AF_INET;
 
-        return connect(sock,(sockaddr*)&destination_address,sizeof(destination_address)) > 0;
+        return connect(sock,(sockaddr*)&destination_address,sizeof(destination_address)) >= 0;
     }
 } // totoro

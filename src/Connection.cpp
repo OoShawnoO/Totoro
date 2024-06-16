@@ -130,8 +130,7 @@ namespace totoro {
                 }
                 case Shutdown : {
                     ShutDown();
-                    status = None;
-                    break;
+                    return;
                 }
             }
         }

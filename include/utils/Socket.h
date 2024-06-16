@@ -36,7 +36,7 @@ namespace totoro {
 
     class TcpListener;
 
-    class TcpSocket : public Socket {
+    class TcpSocket : virtual public Socket {
         friend class TcpListener;
 
     protected:
@@ -56,7 +56,7 @@ namespace totoro {
         virtual size_t Send(const char *data, size_t size);
 
         // 发送数据 / send data
-        size_t SendAll(const std::string &data);
+        virtual size_t SendAll(const std::string &data);
 
         // 发送文件 / send file
         virtual bool SendFile(const std::string &file_path);
@@ -87,8 +87,8 @@ namespace totoro {
 
     class TcpClient : virtual public TcpSocket {
     public:
-        virtual // 连接套接字 / connect socket
-        bool Connect(const std::string &ip, unsigned short port);
+        // 连接套接字 / connect socket
+        virtual bool Connect(const std::string &ip, unsigned short port);
     };
 
 } // totoro

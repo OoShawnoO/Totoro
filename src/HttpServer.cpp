@@ -6,7 +6,7 @@
 #include "fmt/format.h"
 
 namespace totoro {
-
+/* region FileBrowserTemplateHtml */
     const std::string FileBrowserTemplateHtml =
             "<!DOCTYPE html>\n"
             "<html lang=\"en\">\n"
@@ -68,7 +68,8 @@ namespace totoro {
             "    <div class=\"container\">\n"
             "        <h1>文件资源列表</h1>\n"
             "        <ul>";
-
+/* endregion */
+/* region FileBrowserTemplateHtmlEnd */
     const std::string FileBrowserTemplateHtmlEnd =
             "</ul>\n"
             "    </div>\n"
@@ -79,14 +80,14 @@ namespace totoro {
             "    }\n"
             "</script>"
             "</html>";
+/* endregion */
+    HttpConnection::HandlerMapType HttpConnection::handlerMap;
+    HttpsConnection::HandlerMapType HttpsConnection::handlerMap;
 
-    HttpServerImpl::HandlerMapType HttpServerImpl::handlerMap;
-    HttpsServerImpl::HandlerMapType HttpsServerImpl::handlerMap;
+    HttpConnection::FilterMapType HttpConnection::filterMap;
+    HttpsConnection::FilterMapType HttpsConnection::filterMap;
 
-    HttpServerImpl::FilterMapType HttpServerImpl::filterMap;
-    HttpsServerImpl::FilterMapType HttpsServerImpl::filterMap;
-
-    std::string HttpServerImpl::DirResourceHtml(const std::string &dirPath) {
+    std::string HttpConnection::DirResourceHtml(const std::string &dirPath) {
         std::string htmlData = FileBrowserTemplateHtml;
         DIR *dir = opendir(dirPath.c_str());
         if (!dir) return {};
@@ -112,11 +113,11 @@ namespace totoro {
         return htmlData;
     }
 
-    bool HttpServerImpl::FilterNode::isAllowed(HttpMethod method) const {
+    bool HttpConnection::FilterNode::IsAllowed(HttpMethod method) const {
         return std::find(notAllowed.begin(), notAllowed.end(), method) == notAllowed.end();
     }
 
-    void HttpServerImpl::FilterNode::addChild(const std::string &url,
+    void HttpConnection::FilterNode::AddChild(const std::string &url,
                                               std::vector<HttpMethod> &method) {
         std::stringstream stream;
         if (!url.empty() && url[0] == '/') {
@@ -129,7 +130,7 @@ namespace totoro {
 
         while (std::getline(stream, line, '/')) {
             if (line.empty() || line == "*") {
-                filterNode->addNotAllowed(method);
+                filterNode->AddNotAllow(method);
             }
             auto newFilterNode = filterNode->children.find(line);
             if (newFilterNode == filterNode->children.end()) {
@@ -137,87 +138,87 @@ namespace totoro {
             }
             filterNode = newFilterNode->second.get();
         }
-        filterNode->addNotAllowed(method);
+        filterNode->AddNotAllow(method);
     }
 
-    void HttpServerImpl::FilterNode::addNotAllowed(std::vector<HttpMethod> &method) {
+    void HttpConnection::FilterNode::AddNotAllow(std::vector<HttpMethod> &method) {
         for (const auto &m: method) notAllowed.emplace_back(m);
     }
 
 
-    bool HttpServerImpl::GetHandler() {
+    bool HttpConnection::GetHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::PostHandler() {
+    bool HttpConnection::PostHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::PutHandler() {
+    bool HttpConnection::PutHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::PatchHandler() {
+    bool HttpConnection::PatchHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::DeleteHandler() {
+    bool HttpConnection::DeleteHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::TraceHandler() {
+    bool HttpConnection::TraceHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::HeadHandler() {
+    bool HttpConnection::HeadHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::OptionsHandler() {
+    bool HttpConnection::OptionsHandler() {
         return handler();
     }
 
-    bool HttpServerImpl::ConnectHandler() {
+    bool HttpConnection::ConnectHandler() {
         return handler();
     }
 
-    void HttpServerImpl::Get(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Get(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][GET] = handler;
     }
 
-    void HttpServerImpl::Post(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Post(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][POST] = handler;
     }
 
-    void HttpServerImpl::Put(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Put(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][PUT] = handler;
     }
 
-    void HttpServerImpl::Patch(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Patch(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][PATCH] = handler;
     }
 
-    void HttpServerImpl::Delete(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Delete(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][DELETE] = handler;
     }
 
-    void HttpServerImpl::Trace(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Trace(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][TRACE] = handler;
     }
 
-    void HttpServerImpl::Head(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Head(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][HEAD] = handler;
     }
 
-    void HttpServerImpl::Options(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Options(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][OPTIONS] = handler;
     }
 
-    void HttpServerImpl::Connect(unsigned short port, const std::string &url, const HandlerType &handler) {
+    void HttpConnection::Connect(unsigned short port, const std::string &url, const HandlerType &handler) {
         handlerMap[port][url][CONNECT] = handler;
     }
 
-    bool HttpServerImpl::isAllowed(const std::string &url, HttpMethod method) {
+    bool HttpConnection::IsAllow(const std::string &url, HttpMethod method) {
         try {
             auto filterRoot = filterMap.at(ntohs(local_address.sin_port));
             std::stringstream stream(url);
@@ -228,45 +229,45 @@ namespace totoro {
                     filterCursor = filterCursor->children.at(line).get();
                 }
             } catch (std::out_of_range &e) {}
-            return filterCursor->isAllowed(method);
+            return filterCursor->IsAllowed(method);
         } catch (std::out_of_range &e) {
             return true;
         }
     }
 
-    void HttpServerImpl::Filter(unsigned short port, const std::string &url, std::vector<HttpMethod> &method) {
+    void HttpConnection::Filter(unsigned short port, const std::string &url, std::vector<HttpMethod> &method) {
         auto &filterRoot = filterMap[port];
-        filterRoot.addChild(url, method);
+        filterRoot.AddChild(url, method);
     }
 
-    bool HttpServerImpl::handler() {
+    bool HttpConnection::handler() {
         try {
-            if (!isAllowed(httpRequest.header.GetUrl().substr(1),
-                           httpRequest.header.GetMethod())) {
+            if (!IsAllow(request.header.GetUrl().substr(1),
+                         request.header.GetMethod())) {
                 RenderStatus(HttpStatus::Forbidden);
                 return true;
             }
             auto ret = handlerMap
                     .at(ntohs(local_address.sin_port))
-                    .at(httpRequest.header.GetUrl())
-                    .at(httpRequest.header.GetMethod())(httpRequest, httpResponse);
+                    .at(request.header.GetUrl())
+                    .at(request.header.GetMethod())(request, response);
             if (ret) {
-                httpResponse.header.SetStatus(HttpStatus::OK);
-                if (!httpResponse.body.GetResourcePath().empty()) {
+                response.header.SetStatus(HttpStatus::OK);
+                if (!response.body.GetResourcePath().empty()) {
                     struct stat stat{};
-                    if (::stat(httpResponse.body.GetResourcePath().c_str(), &stat) < 0) {
+                    if (::stat(response.body.GetResourcePath().c_str(), &stat) < 0) {
                         RenderStatus(HttpStatus::Not_Found);
                     }
-                    httpResponse.header.SetContentLength(stat.st_size);
+                    response.header.SetContentLength(stat.st_size);
                 } else {
-                    httpResponse.header.SetContentLength(httpResponse.body.GetData().size());
+                    response.header.SetContentLength(response.body.GetData().size());
                 }
             }
             return ret;
         } catch (const std::out_of_range &e) {
             /* 静态资源文件处理 */
-            std::string realUrl = httpRequest.header.GetUrl().substr(1);
-            if (httpRequest.header.GetUrl() == "/") realUrl = ".";
+            std::string realUrl = request.header.GetUrl().substr(1);
+            if (request.header.GetUrl() == "/") realUrl = ".";
             struct stat stat{};
             if (::stat(realUrl.c_str(), &stat) < 0) {
                 RenderStatus(HttpStatus::Not_Found);
@@ -277,23 +278,23 @@ namespace totoro {
                     return true;
                 }
                 if ((S_IFMT & stat.st_mode) == S_IFDIR) {
-                    httpResponse.body.SetData(DirResourceHtml(realUrl));
-                    httpResponse.header.SetStatus(HttpStatus::OK);
-                    httpResponse.header.SetContentLength(httpResponse.body.GetData().size());
-                    httpResponse.header.SetContentType("text/html");
+                    response.body.SetData(DirResourceHtml(realUrl));
+                    response.header.SetStatus(HttpStatus::OK);
+                    response.header.SetContentLength(response.body.GetData().size());
+                    response.header.SetContentType("text/html");
                     return true;
                 }
-                httpResponse.header.SetStatus(HttpStatus::OK);
-                httpResponse.body.SetResourcePath(realUrl);
-                httpResponse.header.SetContentLength(stat.st_size);
+                response.header.SetStatus(HttpStatus::OK);
+                response.body.SetResourcePath(realUrl);
+                response.header.SetContentLength(stat.st_size);
                 std::string contentType;
                 try {
-                    contentType = HttpContentTypeMap
+                    contentType = http_content_type_map
                             .at(realUrl.substr(realUrl.find('.') + 1));
                 } catch (const std::out_of_range &e) {
                     contentType = "text/plain";
                 }
-                httpResponse.header.SetContentType(contentType);
+                response.header.SetContentType(contentType);
                 return true;
             }
         } catch (...) {
@@ -302,47 +303,85 @@ namespace totoro {
         }
     }
 
+    void HttpConnection::Handler() {
+        
+        if(!RecvUntil(request_header_text,"\r\n\r\n")) {
+            MOLE_ERROR(HttpConnectionChan,"recv request header failed");
+            status = Shutdown;
+            return;
+        }
+        if(!request.header.Parse(request_header_text)) {
+            MOLE_ERROR(HttpConnectionChan,"parse request header failed");
+            status = Shutdown;
+            return;
+        }
+
+        auto method = request.header.GetMethod();
+
+        if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT){
+            if(Recv(request_body_text, request.header.GetContentLength()) != request.header.GetContentLength()){
+                MOLE_ERROR(HttpConnectionChan,"recv request body failed");
+                status = Shutdown;
+                return;
+            }
+            if(!request.body.Parse(request_body_text, request.header)) {
+                MOLE_ERROR(HttpConnectionChan,"parse request body failed");
+                status = Shutdown;
+                return;
+            }
+        }
+
+        switch(request.header.GetMethod()) {
+            case GET: {GetHandler();break;}
+            case POST: {PostHandler();break;}
+            case PUT: {PutHandler();break;}
+            case PATCH: {PatchHandler();break;}
+            case DELETE: {DeleteHandler();break;}
+            case TRACE: {TraceHandler();break;}
+            case HEAD: {HeadHandler();break;}
+            case OPTIONS: {OptionsHandler();break;}
+            case CONNECT: {ConnectHandler();break;}
+        }
+
+        if(response_header_text.empty()) {
+            response_header_text = response.header.toString();
+        }
+
+        Submit(std::move(response_header_text));
+
+        if(!response.body.GetResourcePath().empty()) {
+            SubmitFile(response.body.GetResourcePath());
+        }else{
+            Submit(response.body.GetData());
+        }
+
+
+        if(request.header.GetVersion() == HttpVersion::HTTP10) {
+            status = Shutdown;
+        }
+        Clear();
+    }
+
+    void HttpConnection::RenderStatus(HttpStatus status) {
+        response.header.SetStatus(status);
+        response.header.SetVersion(request.header.GetVersion());
+        response.header.SetContentType("text/html");
+
+        std::string data = http_error_template_html + fmt::format(
+                "<body>\n"
+                "<div class=\"error-container\">\n"
+                "    <h1>{}</h1>\n"
+                "    <p>{}</p>\n"
+                "</div>\n"
+                "</body>\n"
+                "</html>", std::to_string((int32_t) status) + " " + http_status_map.find(status)->second,
+                http_status_map.find(status)->second);
+
+        response.header.SetContentLength(data.size());
+        response.body.SetData(data);
+    }
+    
     HttpServer::HttpServer(const Json &config) : Acceptor(config) {}
-
-    void HttpServer::Get(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Get(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Post(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Post(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Put(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Put(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Patch(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Patch(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Delete(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Delete(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Trace(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Trace(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Head(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Head(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Options(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Options(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Connect(const std::string &url, const HttpServer::HandlerType &handler) {
-        HttpServerImpl::Connect(port, url, std::forward<const HandlerType &>(handler));
-    }
-
-    void HttpServer::Filter(const std::string &url, std::vector<HttpMethod> &&method) {
-        HttpServerImpl::Filter(port, url, method);
-    }
 
     HttpServer::HttpServer(
             std::string ip_,
@@ -356,48 +395,111 @@ namespace totoro {
             std::move(ip_), port_, epoll_timeout,reactor_count, edge_trigger,oneshot, none_block
     ){}
 
-    HttpsServer::HttpsServer(const Json &config) : Acceptor<Epoller<HttpsServerImpl>>(config) {
+
+    void HttpServer::Get(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Get(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Post(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Post(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Put(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Put(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Patch(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Patch(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Delete(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Delete(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Trace(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Trace(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Head(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Head(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Options(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Options(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Connect(const std::string &url, const HttpServer::HandlerType &handler) {
+        HttpConnection::Connect(port, url, std::forward<const HandlerType &>(handler));
+    }
+
+    void HttpServer::Filter(const std::string &url, std::vector<HttpMethod> &&method) {
+        HttpConnection::Filter(port, url, method);
+    }
+
+    HttpsServer::HttpsServer(const Json &config) : Acceptor<Epoller<HttpsConnection>>(config) {
 
     }
 
     void HttpsServer::Get(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Get(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Get(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Post(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Post(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Post(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Put(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Put(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Put(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Patch(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Patch(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Patch(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Delete(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Delete(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Delete(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Trace(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Trace(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Trace(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Head(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Head(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Head(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Options(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpsServerImpl::Options(port, url, std::forward<const HandlerType &>(handler));
+        HttpsConnection::Options(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Connect(const std::string &url, const HttpsServer::HandlerType &handler) {
-        HttpServerImpl::Connect(port, url, std::forward<const HandlerType &>(handler));
+        HttpConnection::Connect(port, url, std::forward<const HandlerType &>(handler));
     }
 
     void HttpsServer::Filter(const std::string &url, std::vector<HttpMethod> &&method) {
-        HttpsServerImpl::Filter(port, url, method);
+        HttpsConnection::Filter(port, url, method);
     }
 
+    HttpsServer::HttpsServer(
+            std::string ip_,
+            unsigned short port_,
+            int epoll_timeout,
+            int reactor_count,
+            bool edge_trigger,
+            bool oneshot,
+            bool none_block
+    ) : Acceptor(
+            std::move(ip_), port_, epoll_timeout,reactor_count, edge_trigger,oneshot, none_block
+    ){}
+
+    int HttpsConnection::Close() {
+        return SSLSocket::Close();
+    }
+
+    void HttpsConnection::Handler() {
+        if (!connection) {
+            if (InitSSL() < 0) return;
+        }
+        HttpConnection::Handler();
+    }
 } // totoro

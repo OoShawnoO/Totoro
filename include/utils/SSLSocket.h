@@ -31,7 +31,7 @@ namespace totoro {
     /**
      * @brief 负责SSL事务相关连接 \n Response SSL connection transactions
      */
-    class SSLSocket : public TcpClient {
+    class SSLSocket : virtual public TcpClient {
 
         static SSLContext &GetContext();
 
@@ -48,6 +48,8 @@ namespace totoro {
         int Close() override;
 
         size_t Send(const char *data, size_t size) override;
+
+        size_t SendAll(const std::string& data) override;
 
         bool SendFile(const std::string &file_path) override;
 

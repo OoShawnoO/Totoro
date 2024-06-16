@@ -1,7 +1,8 @@
 #ifndef TOTORO_HTTPCLIENT_H
 #define TOTORO_HTTPCLIENT_H
 
-#include "http/HttpsBase.h"     /* HttpsBase */
+#include "http/Http.h"     /* HttpsBase */
+#include "utils/SSLSocket.h"
 
 namespace totoro {
     enum ProtoType {
@@ -11,7 +12,7 @@ namespace totoro {
     /**
      * @brief 负责HTTP客户端请求实现 \n Response for HTTP client request Implement
      */
-    class HttpClientImpl : protected virtual HttpBase {
+    class HttpClientImpl : public virtual TcpClient,public Http {
     protected:
         virtual bool
         connectToHost(
@@ -65,25 +66,27 @@ namespace totoro {
                 const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
                 int timeout);
 
-        const std::string &GetRequestText() const;
+        const std::string &GetRequestHeaderText() const;
 
-        const std::string &GetResponseText() const;
+        const std::string &GetRequestBodyText() const;
 
-        std::string GetResponseContent() const;
+        const std::string &GetResponseHeaderText() const;
 
-        const HttpBase::RequestHeader &GetRequestHeader();
+        const std::string &GetResponseBodyText() const;
 
-        const HttpBase::RequestBody &GetRequestBody();
+        const Http::RequestHeader &GetRequestHeader();
 
-        const HttpBase::ResponseHeader &GetResponseHeader();
+        const Http::RequestBody &GetRequestBody();
 
-        const HttpBase::ResponseBody &GetResponseBody();
+        const Http::ResponseHeader &GetResponseHeader();
+
+        const Http::ResponseBody &GetResponseBody();
     };
 
     /**
      * @brief 负责HTTPS客户端请求实现 \n Response for HTTPS client request Implement
      */
-    class HttpsClientImpl : protected virtual HttpsBase, public virtual HttpClientImpl {
+    class HttpsClientImpl : public virtual SSLSocket, public virtual HttpClientImpl {
     protected:
         std::string connectAddr;
         unsigned short connectPort;
@@ -175,22 +178,29 @@ namespace totoro {
         std::string GetResponseContent();
 
         // 获取响应报文 / Get response text
-        const std::string &GetResponseText() const;
+        const std::string &GetResponseHeaderText() const;
 
         // 获取请求报文 / Get request text
-        const std::string &GetRequestText() const;
+        const std::string &GetRequestHeaderText() const;
+
+        // 获取响应报文 / Get response text
+        const std::string &GetResponseBodyText() const;
+
+        // 获取请求报文 / Get request text
+        const std::string &GetRequestBodyText() const;
+
 
         // 获取请求头 / Get request header
-        const HttpBase::RequestHeader &GetRequestHeader();
+        const Http::RequestHeader &GetRequestHeader();
 
         // 获取请求体 / Get request body
-        const HttpBase::RequestBody &GetRequestBody();
+        const Http::RequestBody &GetRequestBody();
 
         // 获取响应头 / Get response header
-        const HttpBase::ResponseHeader &GetResponseHeader();
+        const Http::ResponseHeader &GetResponseHeader();
 
         // 获取响应体 / Get response body
-        const HttpBase::ResponseBody &GetResponseBody();
+        const Http::ResponseBody &GetResponseBody();
 
     };
 

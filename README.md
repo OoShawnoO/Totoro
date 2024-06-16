@@ -1,7 +1,4 @@
-# TotoroServer
-
-Reconfiguration for conv_event
-https://github.com/OoShawnoO/conv_event
+# Totoro
 
 - 单Reactor/主从Reactor模型
 - Single Reactor / Master-slave Reactor Model
@@ -32,6 +29,53 @@ git clone https://github.com/OoShawnoO/Totoro.git
 ```shell
 # Ubuntu
 sudo apt install -y openssl && sudo apt install -y libssl-dev 
+```
+
+#### Server
+```c++
+// 最简单的echo服务器
+#include "core/Server.h"
+
+class echo : public totoro::Connection {
+protected:
+  void Handler() override {
+      std::string data;
+      Recv(data,1024);
+      // 通过Submit可以延迟发送，等待后续可能存在的数据进行拼接发送
+      Submit(std::move(data));
+      // 也可以直接使用
+      // SendAll(data);
+  }
+};
+
+int main() {
+    totoro::Server<echo> server("127.0.0.1",9999);
+    server.Run();
+}
+```
+
+#### Http Server
+```c++
+// 最简单的Http Server
+#include "http/HttpServer.h"
+
+
+int main() {
+    totoro::HttpServer server("127.0.0.1",9999);
+
+    server.Get("/",[](const totoro::Http::HttpRequest & request, totoro::Http::HttpResponse & response) -> bool {
+//        response.header.SetContentType("text/plain");
+//        response.body.SetData("123");
+
+        response.header.SetContentType("application/json");
+        response.body.SetResourcePath("etc/config.json");
+
+        return true;
+    });
+
+    server.Run();
+
+}
 ```
 
 #### Http Client
@@ -97,47 +141,3 @@ sudo apt install -y openssl && sudo apt install -y libssl-dev
     if(!client.Post(parameters)) { return false; }
     client.GetResponseContent();
     ```
-
-#### Http Server
-使用配置文件 etc/config.json进行初始化 / Using Configure etc/config.json to Initialize
-
-- HTTP  正向代理 / HTTP Forward Proxy
-  ```c++
-  bool isStop{false};
-  // 将从etc/config.json中选取SERVER字段中第一个配置进行初始化服务器
-  // it will choose etc/config.json first of field 'SERVER' json object ot initialize server
-  const auto& conf = Configure::Get()["SERVER"][0];
-  HttpForwardServer acceptor(isStop,conf);
-  acceptor.Run();
-  ```
-- HTTP  反向代理 / HTTP Reverse Proxy
-  ```c++
-  bool isStop{false};
-  // 将从etc/config.json中选取SERVER字段中第一个配置进行初始化服务器
-  // it will choose etc/config.json first of field 'SERVER' json object ot initialize server
-  const auto& conf = Configure::Get()["SERVER"][0];
-  // 将从etc/config.json中选取HTTP_REVERSE_PROXY字段中寻找对应反向代理端口,并转发至目的服务器
-  // it will choose etc/config.json field 'HTTP_REVERSE_PROXY' and then find field at port that need reverse proxy,forward to destination server
-  HttpReverseServer acceptor(isStop,conf);
-  acceptor.Run();
-  ```
-- HTTPS 正向代理 / HTTPS Forward Proxy
-```c++
-  bool isStop{false};
-  // 将从etc/config.json中选取SERVER字段中第一个配置进行初始化服务器
-  // it will choose etc/config.json first of field 'SERVER' json object ot initialize server
-  const auto& conf = Configure::Get()["SERVER"][0];
-  HttpsForwardServer acceptor(isStop,conf);
-  acceptor.Run();
-  ```
-- HTTPS 反向代理 / HTTPS Reverse Proxy
-  ```c++
-  bool isStop{false};
-  // 将从etc/config.json中选取SERVER字段中第一个配置进行初始化服务器
-  // it will choose etc/config.json first of field 'SERVER' json object ot initialize server
-  const auto& conf = Configure::Get()["SERVER"][0];
-  // 将从etc/config.json中选取HTTPS_REVERSE_PROXY字段中寻找对应反向代理端口,并转发至目的服务器
-  // it will choose etc/config.json field 'HTTPS_REVERSE_PROXY' and then find field at port that need reverse proxy,forward to destination server
-  HttpsReverseServer acceptor(isStop,conf);
-  acceptor.Run();
-  ```

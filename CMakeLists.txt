@@ -20,11 +20,11 @@ endif()
 add_executable(${TARGET} main.cpp
         src/Socket.cpp
         src/Connection.cpp
-        src/HttpBase.cpp
-        src/HttpsBase.cpp
+        src/Http.cpp
         src/HttpServer.cpp
         src/SSLSocket.cpp
         src/Configure.cpp
+        src/HttpClient.cpp
 )
 
 target_link_libraries(${TARGET} pthread fmt::fmt ssl crypto Mole)

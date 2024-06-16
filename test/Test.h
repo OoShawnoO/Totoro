@@ -8,8 +8,7 @@
 #include "core/Connection.h"
 #include "core/Acceptor.h"
 #include "core/Epoller.h"
-#include "http/HttpBase.h"
-#include "http/HttpsBase.h"
+#include "http/Http.h"
 #include "http/HttpClient.h"
 #include "core/Server.h"
 

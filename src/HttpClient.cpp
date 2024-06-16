@@ -33,7 +33,7 @@ namespace totoro {
         if ((proxy = proxies.find("http")) != proxies.end()) {
             realAddr = proxy->second.first;
             realPort = proxy->second.second;
-            requestHeader.SetField("Host", {fmt::format("{}:{}", addr, port)});
+            request.header.SetField("Host", {fmt::format("{}:{}", addr, port)});
         }
 
         auto host = gethostbyname(realAddr.c_str());
@@ -76,12 +76,12 @@ namespace totoro {
             realUrl += fmt::format("{}={}", parameter.first, parameter.second);
         }
 
-        requestHeader.SetMethod(GET);
-        requestHeader.SetVersion(HTTP11);
-        requestHeader.SetUrl(realUrl);
+        request.header.SetMethod(GET);
+        request.header.SetVersion(HTTP11);
+        request.header.SetUrl(realUrl);
 
         for (const auto &header: headers) {
-            requestHeader.SetField(header.first, header.second);
+            request.header.SetField(header.first, header.second);
         }
         std::string cookieStr;
         isFirst = true;
@@ -92,10 +92,9 @@ namespace totoro {
             cookieStr += fmt::format("{}={}", cookie.first, cookie.second);
         }
         if (!cookieStr.empty()) {
-            requestHeader.SetField("Cookies", {cookieStr});
+            request.header.SetField("Cookies", {cookieStr});
         }
 
-        parseStatus = SendHeader;
         return true;
     }
 
@@ -106,11 +105,11 @@ namespace totoro {
             const HttpMultiPartType &files,
             const HttpFormType &forms,
             const nlohmann::json &json) {
-        requestHeader.SetMethod(POST);
-        requestHeader.SetVersion(HTTP11);
-        requestHeader.SetUrl(url);
+        request.header.SetMethod(POST);
+        request.header.SetVersion(HTTP11);
+        request.header.SetUrl(url);
         for (const auto &header: headers) {
-            requestHeader.SetField(header.first, header.second);
+            request.header.SetField(header.first, header.second);
         }
         std::string cookieStr;
         bool isFirst = true;
@@ -121,33 +120,64 @@ namespace totoro {
             cookieStr += fmt::format("{}={}", cookie.first, cookie.second);
         }
         if (!cookieStr.empty()) {
-            requestHeader.SetField("Cookies", {cookieStr});
+            request.header.SetField("Cookies", {cookieStr});
         }
         if (!files.empty()) {
-            requestHeader.SetField("Content-Type", {"multipart/form-data"});
+            request.header.SetField("Content-Type", {"multipart/form-data"});
             for (const auto &file: files) {
-                requestBody.SetFilesFieldData(file.first, file.second);
+                request.body.SetFilesFieldData(file.first, file.second);
             }
         } else if (!forms.empty()) {
-            requestHeader.SetField("Content-Type", {"application/x-www-form-urlencoded"});
-            requestBody.SetForm(forms);
+            request.header.SetField("Content-Type", {"application/x-www-form-urlencoded"});
+            request.body.SetForm(forms);
         } else if (!json.empty()) {
-            requestHeader.SetField("Content-Type", {"application/json"});
-            requestBody.SetJson(json);
+            request.header.SetField("Content-Type", {"application/json"});
+            request.body.SetJson(json);
         } else return false;
 
-        parseStatus = SendHeader;
         return true;
     }
 
     bool
     HttpClientImpl::processRequestResponse() {
-        decltype(SUCCESS) status;
-        while ((status = SendRequest()) == AGAIN) {}
-        if (status == FAILED) return false;
-        while ((status = ParseResponse()) == AGAIN) {}
-        if (status == FAILED) return false;
+        auto method = request.header.GetMethod();
+
+        if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT) {
+            request_body_text = request.body.toString(request.header);
+            request.header.SetContentLength(request_body_text.size());
+        }
+
+        if(request_header_text.empty()) {
+            request_header_text = request.header.toString();
+        }
+
+        SendAll(request_header_text);
+
+        if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT) {
+            SendAll(request_body_text);
+        }
+
+        if(!RecvUntil(response_header_text,"\r\n\r\n")) {
+            MOLE_ERROR("Totoro","recv request header failed");
+            return false;
+        }
+        if(!response.header.Parse(response_header_text)) {
+            MOLE_ERROR("Totoro","parse request header failed");
+            return false;
+        }
+        if(response.header.GetContentLength() != 0){
+            if(Recv(response_body_text,response.header.GetContentLength()) != response.header.GetContentLength()){
+                MOLE_ERROR("Totoro","recv request body failed");
+                return false;
+            }
+        }else if(response.header.GetTransferEncoding() == "chunked"){
+            // TODO chunked
+        }else{
+            return true;
+        }
+
         return true;
+        
     }
 
     bool
@@ -167,7 +197,7 @@ namespace totoro {
 
         TIMEOUT(processRequestResponse(), timeout);
 
-        HttpBase::Close();
+        Close();
         return true;
     }
 
@@ -187,23 +217,33 @@ namespace totoro {
         TIMEOUT(connectToHost(addr, port, proxies), timeout);
         if (!processPostRequestParameters(url, headers, cookies, files, forms, json)) return false;
         TIMEOUT(processRequestResponse(), timeout);
-        HttpBase::Close();
+        Close();
         return true;
     }
 
-    const HttpBase::RequestHeader &HttpClientImpl::GetRequestHeader() { return requestHeader; }
+    const Http::RequestHeader &HttpClientImpl::GetRequestHeader() { return request.header; }
 
-    const HttpBase::RequestBody &HttpClientImpl::GetRequestBody() { return requestBody; }
+    const Http::RequestBody &HttpClientImpl::GetRequestBody() { return request.body; }
 
-    const HttpBase::ResponseHeader &HttpClientImpl::GetResponseHeader() { return responseHeader; }
+    const Http::ResponseHeader &HttpClientImpl::GetResponseHeader() { return response.header; }
 
-    const HttpBase::ResponseBody &HttpClientImpl::GetResponseBody() { return responseBody; }
+    const Http::ResponseBody &HttpClientImpl::GetResponseBody() { return response.body; }
 
-    const std::string &HttpClientImpl::GetRequestText() const { return requestText; }
+    const std::string &HttpClientImpl::GetRequestHeaderText() const {
+        return request_header_text;
+    }
 
-    const std::string &HttpClientImpl::GetResponseText() const { return responseText; }
+    const std::string &HttpClientImpl::GetRequestBodyText() const {
+        return request_body_text;
+    }
 
-    std::string HttpClientImpl::GetResponseContent() const { return responseText.substr(responseHeaderEnd); }
+    const std::string &HttpClientImpl::GetResponseHeaderText() const {
+        return response_header_text;
+    }
+
+    const std::string &HttpClientImpl::GetResponseBodyText() const {
+        return response_body_text;
+    }
 
 
     /* -------------------------- HttpsClient ------------------------------- */
@@ -234,7 +274,7 @@ namespace totoro {
             std::string tempIP;
             for (int i = 0; host->h_addr_list[i]; i++) {
                 tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);
-                if (TCPSocket::Connect(tempIP, realPort)) {
+                if (Connect(tempIP, realPort)) {
                     connected = true;
                     break;
                 }
@@ -243,18 +283,19 @@ namespace totoro {
                 MOLE_ERROR(HttpClientChan, "failed to connect host");
                 return false;
             }
-            if (TCPSocket::SendAll(
+            if (SendAll(
                     fmt::format("{} {} {}\r\n\r\n", "CONNECT", fmt::format("{}:{}", connectAddr, connectPort),
                                 "HTTP/1.1")) < 0) {
                 MOLE_ERROR(HttpClientChan, "send connect failed");
                 return false;
             }
-            while (!TCPSocket::RecvAll(data)) {}
-            if (data.rfind("Connection established") == std::string::npos) {
+            SSLSocket::RecvUntil(response_header_text,"\r\n\r\n");
+            if (response_header_text.rfind("Connection established") == std::string::npos) {
                 MOLE_ERROR(HttpClientChan, "connect proxy failed");
                 return false;
             }
-            ClearData();
+
+            char buffer[4096] = {0};
             if (!connection) {
                 connection = SSL_new(GetClientContext().context);
                 if (!connection) {
@@ -292,7 +333,43 @@ namespace totoro {
     }
 
     bool HttpsClientImpl::processRequestResponse() {
-        return HttpClientImpl::processRequestResponse();
+        auto method = request.header.GetMethod();
+
+        if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT) {
+            request_body_text = request.body.toString(request.header);
+            request.header.SetContentLength(request_body_text.size());
+        }
+
+        if(request_header_text.empty()) {
+            request_header_text = request.header.toString();
+        }
+
+        SSLSocket::SendAll(request_header_text);
+
+        if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT) {
+            SSLSocket::SendAll(request_body_text);
+        }
+
+        if(!SSLSocket::RecvUntil(response_header_text,"\r\n\r\n")) {
+            MOLE_ERROR("Totoro","recv request header failed");
+            return false;
+        }
+        if(!response.header.Parse(response_header_text)) {
+            MOLE_ERROR("Totoro","parse request header failed");
+            return false;
+        }
+        if(response.header.GetContentLength() != 0){
+            if(Recv(response_body_text,response.header.GetContentLength()) != response.header.GetContentLength()){
+                MOLE_ERROR("Totoro","recv request body failed");
+                return false;
+            }
+        }else if(response.header.GetTransferEncoding() == "chunked"){
+            // TODO chunked
+        }else{
+            return true;
+        }
+
+        return true;
     }
 
     bool
@@ -312,7 +389,7 @@ namespace totoro {
 
         TIMEOUT(processRequestResponse(), timeout);
 
-        HttpsBase::Close();
+        Close();
         return true;
     }
 
@@ -332,7 +409,7 @@ namespace totoro {
         TIMEOUT(connectToHost(addr, port, proxies), timeout);
         if (!processPostRequestParameters(url, headers, cookies, files, forms, json)) return false;
         TIMEOUT(processRequestResponse(), timeout);
-        HttpsBase::Close();
+        Close();
         return true;
     }
 
@@ -435,7 +512,7 @@ namespace totoro {
         return false;
     }
 
-    const HttpBase::RequestHeader &HttpClient::GetRequestHeader() {
+    const Http::RequestHeader &HttpClient::GetRequestHeader() {
         switch (type) {
             case HTTP :
                 return http.GetRequestHeader();
@@ -445,7 +522,7 @@ namespace totoro {
         return http.GetRequestHeader();
     }
 
-    const HttpBase::RequestBody &HttpClient::GetRequestBody() {
+    const Http::RequestBody &HttpClient::GetRequestBody() {
         switch (type) {
             case HTTP :
                 return http.GetRequestBody();
@@ -455,7 +532,7 @@ namespace totoro {
         return http.GetRequestBody();
     }
 
-    const HttpBase::ResponseHeader &HttpClient::GetResponseHeader() {
+    const Http::ResponseHeader &HttpClient::GetResponseHeader() {
         switch (type) {
             case HTTP :
                 return http.GetResponseHeader();
@@ -465,7 +542,7 @@ namespace totoro {
         return http.GetResponseHeader();
     }
 
-    const HttpBase::ResponseBody &HttpClient::GetResponseBody() {
+    const Http::ResponseBody &HttpClient::GetResponseBody() {
         switch (type) {
             case HTTP :
                 return http.GetResponseBody();
@@ -475,33 +552,20 @@ namespace totoro {
         return http.GetResponseBody();
     }
 
-    const std::string &HttpClient::GetResponseText() const {
-        switch (type) {
-            case HTTP :
-                return http.GetResponseText();
-            case HTTPS :
-                return https.GetResponseText();
-        }
-        return http.GetResponseText();
+
+    const std::string &HttpClient::GetResponseHeaderText() const {
+        return type == HTTP ? http.GetResponseHeaderText() : https.GetResponseHeaderText();
     }
 
-    const std::string &HttpClient::GetRequestText() const {
-        switch (type) {
-            case HTTP :
-                return http.GetRequestText();
-            case HTTPS :
-                return https.GetRequestText();
-        }
-        return http.GetRequestText();
+    const std::string &HttpClient::GetRequestHeaderText() const {
+        return type == HTTP ? http.GetRequestHeaderText() : https.GetRequestHeaderText();
     }
 
-    std::string HttpClient::GetResponseContent() {
-        switch (type) {
-            case HTTP :
-                return http.GetResponseContent();
-            case HTTPS :
-                return https.GetResponseContent();
-        }
-        return http.GetResponseContent();
+    const std::string &HttpClient::GetResponseBodyText() const {
+        return type == HTTP ? http.GetResponseBodyText() : https.GetResponseBodyText();
+    }
+
+    const std::string &HttpClient::GetRequestBodyText() const {
+        return type == HTTP ? http.GetRequestBodyText() : https.GetRequestBodyText();
     }
 } // totoro

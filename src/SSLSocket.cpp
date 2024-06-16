@@ -157,9 +157,8 @@ namespace totoro {
             cache = cache.substr(size);
             return size;
         }else{
-            data = std::move(cache);
             size -= cache.size();
-            cache.clear();
+            data = std::move(cache);
         }
         ssize_t hadRecv;
         size_t needRecv;
@@ -167,7 +166,7 @@ namespace totoro {
         char buffer[4096] = {0};
         while(read_cursor < size){
             bzero(buffer,4096);
-            needRecv = size - read_cursor;
+            needRecv = size - read_cursor > 4096 ? 4096 : size - read_cursor;
             if((hadRecv = SSL_read(connection,buffer,needRecv)) <= 0){
                 MOLE_ERROR(SSLSocketChan, strerror(errno));
                 return read_cursor;
@@ -224,5 +223,9 @@ namespace totoro {
             }
         }
         return true;
+    }
+
+    size_t SSLSocket::SendAll(const std::string &data) {
+        return SSLSocket::Send(data.c_str(),data.size());
     }
 } // totoro

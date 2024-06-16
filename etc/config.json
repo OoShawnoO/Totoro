@@ -1,9 +1,9 @@
 {
-  "server-key": "xxx.key",
-  "server-cert": "xxx.crt",
-  "ca-cert": "xxx.csr",
-  "client-key": "xxx.key",
-  "client-cert": "xxx.crt",
+  "server-key": "test/xxx.key",
+  "server-cert": "test/xxx.crt",
+  "ca-cert": "test/xxx.csr",
+  "client-key": "test/xxx.key",
+  "client-cert": "test/xxx.crt",
   "forward-proxy": {},
   "http_reverse_proxy": {
     "8888": [

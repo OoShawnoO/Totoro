@@ -1,5 +1,5 @@
-#ifndef TOTORO_HTTPBASE_H
-#define TOTORO_HTTPBASE_H
+#ifndef TOTORO_HTTP_H
+#define TOTORO_HTTP_H
 
 #include <list>
 #include "core/Connection.h"     /* Connection */
@@ -7,8 +7,8 @@
 namespace totoro {
     // HTTP Form 详细信息 / HTTP Form Detail
     struct HttpMultiPartDetail {
-        std::string contentType;
-        std::string fileName;
+        std::string content_type;
+        std::string file_name;
         std::string data;
     };
     // HTTP 内容数据类型 / HTTP Content Data Type
@@ -80,22 +80,17 @@ namespace totoro {
         HTTP11, HTTP10, HTTP20, HTTP30
     };
 
-    extern const std::unordered_map<HttpStatus, std::string> HttpStatusMap;
-    extern std::unordered_map<HttpVersion, std::string> HttpVersionMap;
-    extern std::unordered_map<std::string, HttpVersion> ReverseHttpVersionMap;
-    extern std::unordered_map<std::string, std::string> HttpContentTypeMap;
-    extern const std::string HttpErrorTemplateHtml;
+    extern const std::unordered_map<HttpStatus, std::string> http_status_map;
+    extern std::unordered_map<HttpVersion, std::string> http_version_map;
+    extern std::unordered_map<std::string, HttpVersion> reverse_http_version_map;
+    extern std::unordered_map<std::string, std::string> http_content_type_map;
+    extern const std::string http_error_template_html;
 
     /**
      * @brief 负责HTTP连接相关事务 / Response HTTP connection transactions
      */
 
-    class HttpBase : public virtual Connection {
-
-    protected:
-
-        void Handler() override;
-
+    class Http {
     public:
         // 请求头信息 / Request Header Information
         struct RequestHeader {
@@ -328,6 +323,7 @@ namespace totoro {
             // 请求体 / Request body
             RequestBody body;
         };
+
         // 响应信息 / Response Information
         struct HttpResponse {
             // 响应头
@@ -336,18 +332,12 @@ namespace totoro {
             ResponseBody body;
         };
 
-        // 接收并解析请求 / Recv and parse request
-        bool ParseRequest();
-
-        // 接受并解析响应 / Recv and parse response
-        bool ParseResponse();
-
-        // 发送请求 / Send Request
-        bool PrepareRequest();
-
-        // 发送响应 / Send Response
-        bool PrepareResponse();
-
+        void Clear();
+    protected:
+        // 请求信息 / Request Information
+        HttpRequest request{};
+        // 响应信息 / Response Information
+        HttpResponse response{};
         // 请求头报文 / Request header text
         std::string request_header_text;
         // 请求体报文 / Request body text
@@ -356,47 +346,9 @@ namespace totoro {
         std::string response_header_text;
         // 响应体报文 / Response body text
         std::string response_body_text;
-        // 响应头结束索引 / Index of response header end
-        size_t response_end_index;
-
-        void Clear();
-
-        virtual void RenderStatus(HttpStatus status);
-
-    protected:
-        // 请求信息 / Request Information
-        HttpRequest httpRequest{};
-        // 响应信息 / Response Information
-        HttpResponse httpResponse{};
-
-        // Get 方法处理 / Get Request Handler
-        virtual bool GetHandler();
-
-        // Post 方法处理 / Post Request Handler
-        virtual bool PostHandler();
-
-        // Put 方法处理 / Put Request Handler
-        virtual bool PutHandler();
-
-        // Patch 方法处理 / Patch Request Handler
-        virtual bool PatchHandler();
-
-        // Delete 方法处理 / Delete Request Handler
-        virtual bool DeleteHandler();
-
-        // Trace 方法处理 / Trace Request Handler
-        virtual bool TraceHandler();
-
-        // Head 方法处理 / Head Request Handler
-        virtual bool HeadHandler();
-
-        // Options 方法处理 / Options Request Handler
-        virtual bool OptionsHandler();
-
-        // Connect 方法处理 / Connect Request Handler
-        virtual bool ConnectHandler();
 
     };
+
 } // totoro
 
-#endif //TOTORO_HTTPBASE_H
+#endif //TOTORO_HTTP_H

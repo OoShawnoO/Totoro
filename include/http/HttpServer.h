@@ -1,29 +1,32 @@
 #ifndef TOTORO_HTTPSERVER_H
 #define TOTORO_HTTPSERVER_H
 
-#include "http/HttpBase.h"
+#include "http/Http.h"
 #include "core/Acceptor.h"
-#include "http/HttpsBase.h"
+#include "utils/SSLSocket.h"
 
 namespace totoro {
+
+    const std::string HttpConnectionChan = "Totoro";
+
     /* HTTP 服务器连接 / HTTP server connection */
-    class HttpServerImpl : public virtual HttpBase {
+    class HttpConnection : public Http, public virtual Connection {
         template<typename T>
         using Ptr = std::shared_ptr<T>;
 
         struct FilterNode {
             std::unordered_map<std::string, Ptr<FilterNode>> children;
+
             std::vector<HttpMethod> notAllowed;
 
-            bool isAllowed(HttpMethod method) const;
+            bool IsAllowed(HttpMethod method) const;
 
-            void addChild(const std::string &url,
-                          std::vector<HttpMethod> &method);
+            void AddChild(const std::string &url, std::vector<HttpMethod> &method);
 
-            void addNotAllowed(std::vector<HttpMethod> &method);
+            void AddNotAllow(std::vector<HttpMethod> &method);
         };
 
-        bool isAllowed(const std::string &url, HttpMethod method);
+        bool IsAllow(const std::string &url, HttpMethod method);
 
         bool handler();
 
@@ -69,37 +72,44 @@ namespace totoro {
         static std::string DirResourceHtml(const std::string &dirPath);
 
     protected:
-        bool GetHandler() override;
+        void Handler() override;
 
-        bool PostHandler() override;
+        void RenderStatus(HttpStatus status);
 
-        bool PutHandler() override;
+        bool GetHandler();
 
-        bool PatchHandler() override;
+        bool PostHandler();
 
-        bool DeleteHandler() override;
+        bool PutHandler();
 
-        bool TraceHandler() override;
+        bool PatchHandler();
 
-        bool HeadHandler() override;
+        bool DeleteHandler();
 
-        bool OptionsHandler() override;
+        bool TraceHandler();
 
-        bool ConnectHandler() override;
+        bool HeadHandler();
+
+        bool OptionsHandler();
+
+        bool ConnectHandler();
     };
 
     /* HTTPS 服务器连接 / HTTPS server connection */
-    class HttpsServerImpl : public HttpServerImpl, public HttpsBase {
+    class HttpsConnection : public HttpConnection, public SSLSocket {
         using HandlerType = std::function<bool(const HttpRequest &, HttpResponse &)>;
         using HandlerMapType = std::unordered_map<unsigned short, std::unordered_map<std::string, std::unordered_map<HttpMethod, HandlerType>>>;
         static HandlerMapType handlerMap;
         static FilterMapType filterMap;
+    public:
+        void Handler() override;
+        int Close() final;
     };
 
     /* HTTP 路由服务器 / HTTP Router Server */
-    class HttpServer : public Acceptor<Epoller<HttpServerImpl>> {
+    class HttpServer : public Acceptor<Epoller<HttpConnection>> {
     public:
-        using HandlerType = std::function<bool(const HttpBase::HttpRequest &, HttpBase::HttpResponse &)>;
+        using HandlerType = std::function<bool(const Http::HttpRequest &, Http::HttpResponse &)>;
 
         explicit HttpServer(const Json &config);
 
@@ -145,10 +155,20 @@ namespace totoro {
     };
 
     /* HTTPS 路由服务器 / HTTPS Router Server */
-    class HttpsServer : public Acceptor<Epoller<HttpsServerImpl>> {
-        using HandlerType = std::function<bool(const HttpBase::HttpRequest &, HttpBase::HttpResponse &)>;
+    class HttpsServer : public Acceptor<Epoller<HttpsConnection>> {
+        using HandlerType = std::function<bool(const Http::HttpRequest &, Http::HttpResponse &)>;
     public:
         HttpsServer(const Json &config);
+
+        HttpsServer(
+            std::string ip_,
+            unsigned short port_,
+            int epoll_timeout = -1,
+            int reactor_count = 1,
+            bool edge_trigger = false,
+            bool oneshot = true,
+            bool none_block = true
+        );
 
         // 注册GET请求路由 / Register Get method router
         void Get(const std::string &url, const HandlerType &handler);
@@ -180,11 +200,6 @@ namespace totoro {
         // 注册过滤器 / Register filter
         void Filter(const std::string &url, std::vector<HttpMethod> &&method);
     };
-
-    // 请求信息 / Request Information
-    using HttpRequest = HttpBase::HttpRequest;
-    // 响应信息 / Response Information
-    using HttpResponse = HttpBase::HttpResponse;
 
 } // totoro
 
