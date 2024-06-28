@@ -3,7 +3,7 @@
 
 #include <atomic>           /* atomic */
 #include <vector>           /* vector */
-#include "Mole.h"    /* AsyncLogger */
+#include "Mole.h"      /* AsyncLogger */
 #include "Channel.h"        /* Channel */
 
 

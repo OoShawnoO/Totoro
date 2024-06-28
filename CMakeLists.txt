@@ -11,7 +11,7 @@ link_directories(lib)
 
 #依赖Mole
 add_subdirectory(3rdparty/Mole)
-
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # 依赖fmt
 if(NOT ${TRAGET} fmt)
 include(3rdparty/fmt.cmake)
@@ -27,4 +27,25 @@ add_executable(${TARGET} main.cpp
         src/HttpClient.cpp
 )
 
+add_library(totoro.core SHARED
+        # core
+        src/Connection.cpp src/Socket.cpp src/Configure.cpp
+)
+
+add_library(totoro.http.server SHARED
+        # core
+        src/Connection.cpp src/Socket.cpp src/Configure.cpp
+        # http
+        src/Http.cpp src/HttpServer.cpp src/SSLSocket.cpp
+)
+
+add_library(totoro.http.client SHARED
+        # socket
+        src/Socket.cpp src/SSLSocket.cpp
+        # http
+        src/Http.cpp src/HttpClient.cpp
+)
 target_link_libraries(${TARGET} pthread fmt::fmt ssl crypto Mole)
+target_link_libraries(totoro.core pthread fmt::fmt ssl crypto Mole)
+target_link_libraries(totoro.http.server pthread fmt::fmt ssl crypto Mole)
+target_link_libraries(totoro.http.client pthread fmt::fmt ssl crypto Mole)

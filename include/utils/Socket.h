@@ -4,7 +4,7 @@
 #include <unistd.h>         /* close */
 #include <arpa/inet.h>      /* socket addr */
 #include <string>           /* string */
-#include "Mole/Mole.h"    /* AsyncLogger */
+#include "Mole.h"           /* AsyncLogger */
 #include <sys/stat.h>       /* stat */
 #include <vector>           /* vector */
 

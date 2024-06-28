@@ -2,7 +2,7 @@
 #define TOTORO_HTTPCLIENT_H
 
 #include "http/Http.h"     /* HttpsBase */
-#include "utils/SSLSocket.h"
+#include "SSLSocket.h"
 
 namespace totoro {
     enum ProtoType {
