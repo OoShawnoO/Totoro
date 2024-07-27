@@ -152,17 +152,17 @@ namespace totoro {
     }
 
     size_t SSLSocket::Recv(std::string &data, size_t size) {
+        ssize_t hadRecv;
+        size_t needRecv;
+        size_t read_cursor = 0;
         if(cache.size() >= size) {
             data = cache.substr(0,size);
             cache = cache.substr(size);
             return size;
         }else{
-            size -= cache.size();
+            read_cursor += cache.size();
             data = std::move(cache);
         }
-        ssize_t hadRecv;
-        size_t needRecv;
-        size_t read_cursor = 0;
         char buffer[4096] = {0};
         while(read_cursor < size){
             bzero(buffer,4096);
@@ -182,6 +182,11 @@ namespace totoro {
         ssize_t hadRecv;
         size_t read_cursor = 0;
         size_t pos;
+        if((pos = cache.find(key)) != std::string::npos) {
+            data = cache.substr(0,pos + strlen(key));
+            cache = cache.substr(pos + strlen(key));
+            return pos + strlen(key);
+        }
         char buffer[4096] = {0};
         while(true){
             bzero(buffer,4096);
@@ -198,9 +203,9 @@ namespace totoro {
         }
     }
 
-    bool SSLSocket::Connect(const std::string &ip, unsigned short port) {
+    bool SSLSocket::Connect(const std::string &ip, unsigned short port,unsigned int timeout) {
 
-        if (!TcpClient::Connect(ip, port)) return false;
+        if (!TcpClient::Connect(ip, port,timeout)) return false;
 
         char buffer[4096] = {0};
         if (!connection) {
@@ -213,9 +218,12 @@ namespace totoro {
                 MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
                 return false;
             }
-            if (SSL_connect(connection) <= 0) {
+            int times = 3;
+            while (SSL_connect(connection) <= 0) {
                 MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
-                return false;
+                if(--times < 0) return false;
+                else continue;
+
             }
             if (SSL_is_init_finished(connection) <= 0) {
                 MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));

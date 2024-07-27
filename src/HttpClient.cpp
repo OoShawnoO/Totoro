@@ -7,26 +7,28 @@
 const std::string HttpClientChan = "Totoro";
 namespace totoro {
 
-#define TIMEOUT(function, _timeout) do {                                 \
-    std::future<bool> result = std::async(std::launch::async,[&]{       \
-        return function;                                                \
-    });                                                                 \
-    if(timeout > 0){                                                    \
-        std::chrono::milliseconds to(_timeout);                         \
-        if(result.wait_for(to) == std::future_status::timeout){         \
-            MOLE_ERROR(HttpClientChan,"timeout");                        \
-            Close();                                                    \
-            return false;                                               \
-        }                                                               \
-    }                                                                   \
-    if(!result.get()) return false;                                     \
-}while(0)
+//#define TIMEOUT(function, _timeout) do {                                \
+//    std::future<bool> result = std::async(std::launch::async,[&]{       \
+//        return function;                                                \
+//    });                                                                 \
+//    if(timeout > 0){                                                    \
+//        std::chrono::milliseconds to(_timeout);                         \
+//        if(result.wait_for(to) == std::future_status::timeout){         \
+//            MOLE_ERROR(HttpClientChan,"timeout");                       \
+//            Close();                                                    \
+//            return false;                                               \
+//        }                                                               \
+//    }                                                                   \
+//    if(!result.get()) return false;                                     \
+//}while(0)
 
     bool
     HttpClientImpl::connectToHost(
             const std::string &addr,
             unsigned short port,
-            const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies) {
+            const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
+            unsigned int timeout
+    ) {
         std::string realAddr = addr;
         unsigned short realPort = port;
         auto proxy = proxies.begin();
@@ -45,7 +47,7 @@ namespace totoro {
         std::string tempIP;
         for (int i = 0; host->h_addr_list[i]; i++) {
             tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);
-            if (Connect(tempIP, realPort)) {
+            if (Connect(tempIP, realPort,timeout)) {
                 connected = true;
                 break;
             }
@@ -151,13 +153,13 @@ namespace totoro {
             request_header_text = request.header.toString();
         }
 
-        SendAll(request_header_text);
+        TcpSocket::SendAll(request_header_text);
 
         if(method == HttpMethod::POST || method == HttpMethod::PATCH || method == HttpMethod::PUT) {
-            SendAll(request_body_text);
+            TcpSocket::SendAll(request_body_text);
         }
 
-        if(!RecvUntil(response_header_text,"\r\n\r\n")) {
+        if(!TcpSocket::RecvUntil(response_header_text,"\r\n\r\n")) {
             MOLE_ERROR("Totoro","recv request header failed");
             return false;
         }
@@ -191,11 +193,15 @@ namespace totoro {
             const HttpCookieType &cookies,
             const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
             int timeout) {
-        TIMEOUT(connectToHost(addr, port, proxies), timeout);
+//        TIMEOUT(connectToHost(addr, port, proxies,timeout), timeout);
+        if(!connectToHost(addr,port,proxies,timeout)) {
+            return false;
+        }
 
         processGetRequestParameters(url, headers, parameters, cookies);
 
-        TIMEOUT(processRequestResponse(), timeout);
+//        TIMEOUT(processRequestResponse(), timeout);
+        processRequestResponse();
 
         Close();
         return true;
@@ -214,9 +220,13 @@ namespace totoro {
             const nlohmann::json &json,
             const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
             int timeout) {
-        TIMEOUT(connectToHost(addr, port, proxies), timeout);
+//        TIMEOUT(connectToHost(addr, port, proxies,timeout), timeout);
+        if(!connectToHost(addr,port,proxies,timeout)) {
+            return false;
+        }
         if (!processPostRequestParameters(url, headers, cookies, files, forms, json)) return false;
-        TIMEOUT(processRequestResponse(), timeout);
+//        TIMEOUT(processRequestResponse(), timeout);
+        processRequestResponse();
         Close();
         return true;
     }
@@ -252,7 +262,9 @@ namespace totoro {
     bool HttpsClientImpl::connectToHost(
             const std::string &addr,
             unsigned short port,
-            const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies) {
+            const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
+            unsigned int timeout
+    ) {
         connectAddr = addr;
         connectPort = port;
         std::string realAddr = addr;
@@ -262,6 +274,7 @@ namespace totoro {
         if ((proxy = proxies.find("https")) != proxies.end()) {
             realAddr = proxy->second.first;
             realPort = proxy->second.second;
+            request.header.SetField("Host", {fmt::format("{}:{}", addr, port)});
         }
 
         auto host = gethostbyname(realAddr.c_str());
@@ -274,7 +287,7 @@ namespace totoro {
             std::string tempIP;
             for (int i = 0; host->h_addr_list[i]; i++) {
                 tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);
-                if (Connect(tempIP, realPort)) {
+                if (TcpClient::Connect(tempIP, realPort,timeout)) {
                     connected = true;
                     break;
                 }
@@ -283,13 +296,13 @@ namespace totoro {
                 MOLE_ERROR(HttpClientChan, "failed to connect host");
                 return false;
             }
-            if (SendAll(
+            if (TcpSocket::SendAll(
                     fmt::format("{} {} {}\r\n\r\n", "CONNECT", fmt::format("{}:{}", connectAddr, connectPort),
                                 "HTTP/1.1")) < 0) {
                 MOLE_ERROR(HttpClientChan, "send connect failed");
                 return false;
             }
-            SSLSocket::RecvUntil(response_header_text,"\r\n\r\n");
+            TcpSocket::RecvUntil(response_header_text,"\r\n\r\n");
             if (response_header_text.rfind("Connection established") == std::string::npos) {
                 MOLE_ERROR(HttpClientChan, "connect proxy failed");
                 return false;
@@ -319,7 +332,7 @@ namespace totoro {
             std::string tempIP;
             for (int i = 0; host->h_addr_list[i]; i++) {
                 tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);
-                if (Connect(tempIP, port)) {
+                if (Connect(tempIP, port,timeout)) {
                     connected = true;
                     break;
                 }
@@ -359,7 +372,7 @@ namespace totoro {
             return false;
         }
         if(response.header.GetContentLength() != 0){
-            if(Recv(response_body_text,response.header.GetContentLength()) != response.header.GetContentLength()){
+            if(SSLSocket::Recv(response_body_text,response.header.GetContentLength()) != response.header.GetContentLength()){
                 MOLE_ERROR("Totoro","recv request body failed");
                 return false;
             }
@@ -383,11 +396,22 @@ namespace totoro {
             const HttpCookieType &cookies,
             const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
             int timeout) {
-        TIMEOUT(connectToHost(addr, port, proxies), timeout);
+//        TIMEOUT(connectToHost(addr, port, proxies,timeout), timeout);
+        if(!connectToHost(addr,port,proxies,timeout)) {
+            return false;
+        }
+//        if(!proxies.empty()) {
+//            HttpClientImpl::processGetRequestParameters(url, headers, parameters, cookies);
+//        }else{
+            processGetRequestParameters(url, headers, parameters, cookies);
+//        }
 
-        processGetRequestParameters(url, headers, parameters, cookies);
-
-        TIMEOUT(processRequestResponse(), timeout);
+//        TIMEOUT(processRequestResponse(), timeout);
+//        if(!proxies.empty()) {
+//            HttpClientImpl::processRequestResponse();
+//        }else{
+            processRequestResponse();
+//        }
 
         Close();
         return true;
@@ -406,9 +430,23 @@ namespace totoro {
             const nlohmann::json &json,
             const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
             int timeout) {
-        TIMEOUT(connectToHost(addr, port, proxies), timeout);
-        if (!processPostRequestParameters(url, headers, cookies, files, forms, json)) return false;
-        TIMEOUT(processRequestResponse(), timeout);
+//        TIMEOUT(connectToHost(addr, port, proxies,timeout), timeout);
+        if(!connectToHost(addr,port,proxies,timeout)) {
+            return false;
+        }
+        if(!proxies.empty()) {
+            HttpClientImpl::processPostRequestParameters(url, headers, cookies, files, forms, json);
+        }else{
+            processPostRequestParameters(url, headers, cookies, files, forms, json);
+        }
+
+//        TIMEOUT(processRequestResponse(), timeout);
+        if(!proxies.empty()) {
+            HttpClientImpl::processRequestResponse();
+        }else{
+            processRequestResponse();
+        }
+
         Close();
         return true;
     }

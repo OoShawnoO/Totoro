@@ -58,7 +58,7 @@ namespace totoro {
         size_t RecvUntil(std::string &data, const char *key) override;
 
         // 连接套接字 / connect socket
-        bool Connect(const std::string &ip, unsigned short port) override;
+        bool Connect(const std::string &ip, unsigned short port,unsigned int timeout = 0) override;
 
     };
 

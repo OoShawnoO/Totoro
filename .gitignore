@@ -25,15 +25,4 @@
 *.out
 *.app
 
-main.cpp
 cmake-build-debug
-# third party
-3rdparty/*
-!3rdparty/Mole
-!3rdparty/*.cmake
-
-# test
-test/*
-!test/Test.h
-!test/test.png
-!test/forward.py

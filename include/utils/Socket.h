@@ -88,7 +88,7 @@ namespace totoro {
     class TcpClient : virtual public TcpSocket {
     public:
         // 连接套接字 / connect socket
-        virtual bool Connect(const std::string &ip, unsigned short port);
+        virtual bool Connect(const std::string &ip, unsigned short port,unsigned int timeout = 0);
     };
 
 } // totoro

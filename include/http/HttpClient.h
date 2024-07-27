@@ -18,7 +18,9 @@ namespace totoro {
         connectToHost(
                 const std::string &addr,
                 unsigned short port,
-                const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies);
+                const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
+                unsigned int timeout = 0
+        );
 
         virtual bool
         processRequestResponse();
@@ -95,7 +97,9 @@ namespace totoro {
         connectToHost(
                 const std::string &addr,
                 unsigned short port,
-                const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies) override;
+                const std::unordered_map<std::string, std::pair<std::string, unsigned short>> &proxies,
+                unsigned int timeout = 0
+        ) override;
 
         bool
         processRequestResponse() override;
@@ -173,9 +177,6 @@ namespace totoro {
 
         // HTTP Post 请求 / HTTP Post method
         bool Post(const HttpRequestParameters &params);
-
-        // 获取响应内容 / Get response content
-        std::string GetResponseContent();
 
         // 获取响应报文 / Get response text
         const std::string &GetResponseHeaderText() const;

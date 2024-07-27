@@ -39,7 +39,7 @@ namespace totoro {
         return size;
     }
 
-    size_t TcpSocket::SendAll(const std::string &data) { return Send(data.c_str(),data.size()); }
+    size_t TcpSocket::SendAll(const std::string &data) { return TcpSocket::Send(data.c_str(),data.size()); }
 
     bool TcpSocket::SendFile(const std::string &file_path) {
         auto file = open(file_path.c_str(),O_RDONLY);
@@ -166,14 +166,14 @@ namespace totoro {
 
     bool TcpListener::Accept(TcpSocket &socket) {
         socklen_t len;
+
         if((socket.sock = accept(sock,(sockaddr*)&socket.destination_address,&len)) < 0){
-            MOLE_ERROR(SocketChan, strerror(errno));
             return false;
         }
         return true;
     }
 
-    bool TcpClient::Connect(const std::string &ip, unsigned short port) {
+    bool TcpClient::Connect(const std::string &ip, unsigned short port,unsigned int timeout) {
         Close();
 
         if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -184,6 +184,19 @@ namespace totoro {
         destination_address.sin_port = htons(port);
         destination_address.sin_family = AF_INET;
 
-        return connect(sock,(sockaddr*)&destination_address,sizeof(destination_address)) >= 0;
+        if(timeout > 0) {
+            struct timeval tv{};
+            tv.tv_usec = timeout;
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        }
+
+        auto connected = connect(sock,(sockaddr*)&destination_address,sizeof(destination_address)) >= 0;
+
+        if(timeout > 0 ) {
+            struct timeval tv{0,0};
+            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        }
+
+        return connected;
     }
 } // totoro

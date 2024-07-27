@@ -22,7 +22,7 @@ namespace totoro {
         using InsertConnectionMapResult = std::pair<ConnectionMapIterator, bool>;
 
         // 停止 / stop
-        bool &stop;
+        volatile bool &stop;
         // epoll 边缘触发 / epoll edge trigger
         bool edge_tigger{false};
         // epoll one-shot
@@ -175,7 +175,7 @@ namespace totoro {
 
     public:
         explicit Epoller(
-                bool &_stop,
+                volatile bool &_stop,
                 bool _et = false,
                 bool _oneshot = true,
                 bool _none_block = true

@@ -16,7 +16,7 @@ namespace totoro {
     template<typename E>
     class Acceptor {
     protected:
-        bool stop{false};
+        volatile bool stop{false};
         std::string ip{};
         unsigned short port{};
         TcpListener listen_socket;
@@ -104,10 +104,23 @@ namespace totoro {
             stop = true;
         }
 
+        void Close() {
+            stop = true;
+        }
+
         void Run() {
             TcpSocket tcpSocket;
+
+            int option = fcntl(listen_socket.Sock(), F_GETFL);
+            int newOption = option | O_NONBLOCK;
+            fcntl(listen_socket.Sock(), F_SETFL, newOption);
+
             while (!stop) {
                 if (!listen_socket.Accept(tcpSocket)) {
+                    if(errno == EWOULDBLOCK || errno == EAGAIN) {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                        continue;
+                    }
                     exit(-1);
                 }
 
