@@ -10,6 +10,6 @@ add_executable(totoro.test main.cpp)
 
 target_link_libraries(
         totoro.test
-        totoro.core totoro.http.server totoro.http.client
+        totoro.all
         GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main
 )

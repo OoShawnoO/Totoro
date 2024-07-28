@@ -276,7 +276,7 @@ TEST(HTTP_CLIENT,get_proxy_https) {
     ASSERT_TRUE(client.Get(param));
 }
 
-TEST(HTTP_SERVER,request) {
+TEST(HTTP_SERVER,http_server) {
     auto* server = new HttpServer(SERVER_IP,SERVER_PORT);
     std::thread server_thread(
             [=]{
@@ -301,6 +301,7 @@ TEST(HTTP_SERVER,request) {
     server_thread.join();
 
 }
+
 
 int main () {
     testing::InitGoogleTest();

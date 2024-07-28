@@ -221,6 +221,7 @@ namespace totoro {
             int times = 3;
             while (SSL_connect(connection) <= 0) {
                 MOLE_ERROR(SSLSocketChan, ERR_error_string(ERR_get_error(), buffer));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 if(--times < 0) return false;
                 else continue;
 

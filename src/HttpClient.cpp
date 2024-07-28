@@ -328,7 +328,8 @@ namespace totoro {
                     return false;
                 }
             }
-        } else {
+        }
+        else {
             std::string tempIP;
             for (int i = 0; host->h_addr_list[i]; i++) {
                 tempIP = inet_ntoa(*(struct in_addr *) host->h_addr_list[i]);

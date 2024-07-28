@@ -45,9 +45,17 @@ add_library(totoro.http.client SHARED
         src/Http.cpp src/HttpClient.cpp
 )
 
+add_library(totoro.all SHARED
+        # core
+        src/Connection.cpp src/Socket.cpp src/Configure.cpp
+        # http
+        src/Http.cpp src/HttpClient.cpp src/HttpServer.cpp src/SSLSocket.cpp
+)
+
 add_subdirectory(test)
 
 target_link_libraries(${TARGET} pthread ssl crypto Mole.share)
 target_link_libraries(totoro.core pthread ssl crypto Mole.share)
 target_link_libraries(totoro.http.server pthread ssl crypto Mole.share)
 target_link_libraries(totoro.http.client pthread ssl crypto Mole.share)
+target_link_libraries(totoro.all pthread ssl crypto Mole.share)
